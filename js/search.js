@@ -350,7 +350,269 @@ const Search = {
     const voiceBtn = document.getElementById('voiceSearchBtn');
     if (voiceBtn) {
       voiceBtn.classList.toggle('listening', isListening);
-      voiceBtn.innerHTML = isListening ? '🔴' : '🎤';
+      if (isListening) {
+        voiceBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>';
+      } else {
+        voiceBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+      }
+    }
+  }
+};
+
+// =====================================================
+// CustomerSearch - Reusable Customer Search Component
+// For use in Extras, Invoice, and other sections
+// =====================================================
+
+const CustomerSearch = {
+  // Active instances tracking
+  instances: {},
+
+  /**
+   * Create a customer search input with voice support
+   * @param {string} containerId - ID of container element
+   * @param {function} onSelect - Callback when customer is selected: (customer) => {}
+   * @param {string} placeholder - Placeholder text
+   * @returns {string} HTML for the search input
+   */
+  create(containerId, onSelect, placeholder = 'Type customer name or mobile...') {
+    // Store callback
+    this.instances[containerId] = { onSelect };
+
+    return `
+      <div class="customer-search-container" id="${containerId}">
+        <div class="customer-search-bar">
+          <span class="search-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </span>
+          <input type="text" 
+                 class="customer-search-input form-control" 
+                 id="${containerId}Input" 
+                 placeholder="${placeholder}" 
+                 autocomplete="off"
+                 onfocus="CustomerSearch.onFocus('${containerId}')"
+                 oninput="CustomerSearch.onInput('${containerId}')"
+                 onkeydown="CustomerSearch.onKeydown(event, '${containerId}')" />
+          <input type="hidden" id="${containerId}Value" required />
+          <button type="button" 
+                  class="customer-voice-btn" 
+                  id="${containerId}VoiceBtn"
+                  onclick="CustomerSearch.startVoice('${containerId}')"
+                  title="Voice Search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <div class="customer-search-results" id="${containerId}Results"></div>
+        <div class="customer-selected" id="${containerId}Selected" style="display: none;">
+          <span class="customer-selected-name" id="${containerId}SelectedName"></span>
+          <button type="button" class="customer-clear-btn" onclick="CustomerSearch.clear('${containerId}')">✕</button>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Initialize after HTML is rendered
+   */
+  init(containerId) {
+    // Check voice support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      const voiceBtn = document.getElementById(`${containerId}VoiceBtn`);
+      if (voiceBtn) voiceBtn.style.display = 'none';
+    }
+  },
+
+  onFocus(containerId) {
+    const input = document.getElementById(`${containerId}Input`);
+    if (input && input.value.length >= 1) {
+      this.search(containerId, input.value);
+    }
+  },
+
+  onInput(containerId) {
+    const input = document.getElementById(`${containerId}Input`);
+    const query = input?.value || '';
+    
+    // Clear hidden value when typing
+    document.getElementById(`${containerId}Value`).value = '';
+    document.getElementById(`${containerId}Selected`).style.display = 'none';
+    document.getElementById(`${containerId}Input`).style.display = 'block';
+    
+    if (query.length >= 1) {
+      this.search(containerId, query);
+    } else {
+      this.hideResults(containerId);
+    }
+  },
+
+  search(containerId, query) {
+    const normalizedQuery = query.toLowerCase().trim();
+    const customers = DB.getActiveCustomers();
+    
+    const results = customers.filter(c => 
+      c.name.toLowerCase().includes(normalizedQuery) ||
+      c.mobile.includes(normalizedQuery)
+    ).slice(0, 8);
+
+    this.renderResults(containerId, results, query);
+  },
+
+  renderResults(containerId, results, query) {
+    const container = document.getElementById(`${containerId}Results`);
+    if (!container) return;
+
+    if (results.length === 0) {
+      container.innerHTML = `
+        <div class="customer-no-results">
+          No customers found for "${Search.escapeHtml(query)}"
+        </div>
+      `;
+      container.classList.add('active');
+      return;
+    }
+
+    container.innerHTML = results.map(c => `
+      <div class="customer-result-item" data-id="${c.id}" onclick="CustomerSearch.select('${containerId}', '${c.id}')">
+        <div class="customer-result-name">${Search.highlightMatch(c.name, query)}</div>
+        <div class="customer-result-mobile">${Search.highlightMatch(c.mobile, query)}</div>
+      </div>
+    `).join('');
+
+    container.classList.add('active');
+  },
+
+  select(containerId, customerId) {
+    const customer = DB.getCustomer(customerId);
+    if (!customer) return;
+
+    // Hide search, show selected
+    document.getElementById(`${containerId}Input`).style.display = 'none';
+    document.getElementById(`${containerId}Results`).classList.remove('active');
+    document.getElementById(`${containerId}Value`).value = customerId;
+    document.getElementById(`${containerId}Selected`).style.display = 'flex';
+    document.getElementById(`${containerId}SelectedName`).textContent = `👤 ${customer.name} - ${customer.mobile}`;
+
+    // Call callback
+    const instance = this.instances[containerId];
+    if (instance?.onSelect) {
+      instance.onSelect(customer);
+    }
+  },
+
+  clear(containerId) {
+    document.getElementById(`${containerId}Input`).value = '';
+    document.getElementById(`${containerId}Input`).style.display = 'block';
+    document.getElementById(`${containerId}Value`).value = '';
+    document.getElementById(`${containerId}Selected`).style.display = 'none';
+    document.getElementById(`${containerId}Input`).focus();
+
+    // Call callback with null
+    const instance = this.instances[containerId];
+    if (instance?.onSelect) {
+      instance.onSelect(null);
+    }
+  },
+
+  hideResults(containerId) {
+    const container = document.getElementById(`${containerId}Results`);
+    if (container) container.classList.remove('active');
+  },
+
+  onKeydown(event, containerId) {
+    const container = document.getElementById(`${containerId}Results`);
+    if (!container || !container.classList.contains('active')) return;
+
+    const items = container.querySelectorAll('.customer-result-item');
+    const focused = container.querySelector('.customer-result-item.focused');
+    let index = Array.from(items).indexOf(focused);
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      index = (index + 1) % items.length;
+      items.forEach(i => i.classList.remove('focused'));
+      items[index]?.classList.add('focused');
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      index = index <= 0 ? items.length - 1 : index - 1;
+      items.forEach(i => i.classList.remove('focused'));
+      items[index]?.classList.add('focused');
+    } else if (event.key === 'Enter' && focused) {
+      event.preventDefault();
+      focused.click();
+    } else if (event.key === 'Escape') {
+      this.hideResults(containerId);
+    }
+  },
+
+  getValue(containerId) {
+    return document.getElementById(`${containerId}Value`)?.value || '';
+  },
+
+  // Voice search for customer input
+  startVoice(containerId) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      App?.showToast('Voice search not supported', 'warning');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-IN';
+
+    const voiceBtn = document.getElementById(`${containerId}VoiceBtn`);
+    const micSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+    const recordingSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>';
+    
+    if (voiceBtn) {
+      voiceBtn.classList.add('listening');
+      voiceBtn.innerHTML = recordingSvg;
+    }
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const input = document.getElementById(`${containerId}Input`);
+      if (input) {
+        input.value = transcript;
+        input.style.display = 'block';
+        document.getElementById(`${containerId}Selected`).style.display = 'none';
+        this.search(containerId, transcript);
+      }
+    };
+
+    recognition.onend = () => {
+      if (voiceBtn) {
+        voiceBtn.classList.remove('listening');
+        voiceBtn.innerHTML = micSvg;
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Voice error:', event.error);
+      if (voiceBtn) {
+        voiceBtn.classList.remove('listening');
+        voiceBtn.innerHTML = micSvg;
+      }
+      if (event.error === 'not-allowed') {
+        App?.showToast('Microphone access denied', 'error');
+      }
+    };
+
+    try {
+      recognition.start();
+      App?.showToast('Listening... Say customer name', 'info', 2000);
+    } catch (e) {
+      console.error('Voice start error:', e);
     }
   }
 };
@@ -361,5 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => Search.init(), 100);
 });
 
-// Make Search available globally
+// Make available globally
 window.Search = Search;
+window.CustomerSearch = CustomerSearch;

@@ -26,12 +26,8 @@ const Extras = {
         <form id="extraForm" onsubmit="Extras.save(event)">
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label required">Select Customer</label>
-              <select class="form-control form-select" id="extraCustomer" required 
-                      onchange="Extras.onCustomerChange()">
-                <option value="">-- Choose Customer --</option>
-                ${customers.map(c => `<option value="${c.id}">${c.name} - ${c.mobile}</option>`).join('')}
-              </select>
+              <label class="form-label required">Search Customer</label>
+              ${CustomerSearch.create('extraCustomerSearch', (customer) => Extras.onCustomerChange(customer), 'Type name or mobile...')}
             </div>
             
             <div class="form-group">
@@ -171,7 +167,7 @@ const Extras = {
   // Form Handlers
   // =====================================================
 
-  onCustomerChange() {
+  onCustomerChange(customer) {
     this.updateStatus();
   },
 
@@ -215,7 +211,7 @@ const Extras = {
   },
 
   updateStatus() {
-    const customerId = document.getElementById('extraCustomer').value;
+    const customerId = CustomerSearch.getValue('extraCustomerSearch');
     const date = document.getElementById('extraDate').value;
     const statusDiv = document.getElementById('extraStatus');
     
@@ -258,7 +254,7 @@ const Extras = {
   save(event) {
     event.preventDefault();
     
-    const customerId = document.getElementById('extraCustomer').value;
+    const customerId = CustomerSearch.getValue('extraCustomerSearch');
     const date = document.getElementById('extraDate').value;
     const mealType = document.querySelector('input[name="mealType"]:checked')?.value;
     const menuItemId = document.getElementById('extraItem').value;
@@ -319,8 +315,11 @@ const Extras = {
   // =====================================================
 
   editCustomerEntries(customerId, date) {
-    // Pre-fill the form for editing
-    document.getElementById('extraCustomer').value = customerId;
+    // Pre-select the customer using CustomerSearch
+    const customer = DB.getCustomer(customerId);
+    if (customer) {
+      CustomerSearch.select('extraCustomerSearch', customerId);
+    }
     document.getElementById('extraDate').value = date;
     this.updateStatus();
     

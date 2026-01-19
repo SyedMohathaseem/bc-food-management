@@ -28,13 +28,10 @@ const Invoice = {
         </div>
         
         <form id="invoiceForm" onsubmit="Invoice.generate(event)">
-          <div class="form-row">
+          <div class="form-row-3">
             <div class="form-group">
-              <label class="form-label required">Select Customer</label>
-              <select class="form-control form-select" id="invoiceCustomer" required>
-                <option value="">-- Choose Customer --</option>
-                ${customers.map(c => `<option value="${c.id}">${c.name} - ${c.mobile}</option>`).join('')}
-              </select>
+              <label class="form-label required">Search Customer</label>
+              ${CustomerSearch.create('invoiceCustomerSearch', null, 'Type name or mobile...')}
             </div>
             
             <div class="form-group">
@@ -91,7 +88,7 @@ const Invoice = {
   generate(event) {
     event.preventDefault();
     
-    const customerId = document.getElementById('invoiceCustomer').value;
+    const customerId = CustomerSearch.getValue('invoiceCustomerSearch');
     const month = parseInt(document.getElementById('invoiceMonth').value);
     const year = parseInt(document.getElementById('invoiceYear').value);
     
