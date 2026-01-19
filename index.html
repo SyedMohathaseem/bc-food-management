@@ -85,6 +85,16 @@
     
     <!-- Main Content -->
     <main class="main-content" id="mainContent">
+      <!-- Global Search Bar -->
+      <div class="search-container" id="searchContainer">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="globalSearch" class="search-input" placeholder="Search customers, menu, extras..." autocomplete="off" />
+          <button type="button" class="voice-search-btn" id="voiceSearchBtn" title="Voice Search">🎤</button>
+        </div>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      
       <!-- Content loaded dynamically via app.js -->
       <div class="loading">
         <div class="spinner"></div>
@@ -104,6 +114,7 @@
   <script src="js/extras.js"></script>
   <script src="js/invoice.js"></script>
   <script src="js/security.js"></script>
+  <script src="js/search.js"></script>
   <script src="js/app.js"></script>
   
   <script>
