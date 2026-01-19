@@ -142,12 +142,12 @@ const App = {
       
       <!-- Stats Cards -->
       <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card" onclick="App.loadPage('customers')" style="cursor: pointer;">
           <div class="stat-icon">👥</div>
           <div class="stat-value">${stats.activeCustomers}</div>
           <div class="stat-label">Active Customers</div>
         </div>
-        <div class="stat-card success">
+        <div class="stat-card success" onclick="App.loadPage('menu')" style="cursor: pointer;">
           <div class="stat-icon">🍽️</div>
           <div class="stat-value">${stats.availableMenuItems}</div>
           <div class="stat-label">Menu Items</div>
