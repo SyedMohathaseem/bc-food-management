@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - BC Food Subscription App</title>
+  <meta name="description" content="Admin panel for daily food subscription billing and extra item invoicing">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍛</text></svg>">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Mobile Sidebar Toggle -->
+    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+    
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-close" id="sidebarClose">✕</button>
+      
+      <div class="sidebar-header">
+        <span class="sidebar-logo">🍛</span>
+        <span class="sidebar-brand">BC <span>Food</span></span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <ul class="nav-links">
+          <li>
+            <a href="#dashboard" class="nav-link active" data-page="dashboard">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-text">Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a href="#customers" class="nav-link" data-page="customers">
+              <span class="nav-link-icon">👥</span>
+              <span class="nav-link-text">Customers</span>
+            </a>
+          </li>
+          <li>
+            <a href="#menu" class="nav-link" data-page="menu">
+              <span class="nav-link-icon">📋</span>
+              <span class="nav-link-text">Menu & Extras</span>
+            </a>
+          </li>
+          <li>
+            <a href="#extras" class="nav-link" data-page="extras">
+              <span class="nav-link-icon">🍽️</span>
+              <span class="nav-link-text">Daily Extras Entry</span>
+            </a>
+          </li>
+          <li>
+            <a href="#invoice" class="nav-link" data-page="invoice">
+              <span class="nav-link-icon">🧾</span>
+              <span class="nav-link-text">Invoices</span>
+            </a>
+          </li>
+          <li style="border-top: 1px solid var(--neutral-200); margin-top: var(--space-4); padding-top: var(--space-4);">
+            <a href="#security" class="nav-link" data-page="security">
+              <span class="nav-link-icon">🔐</span>
+              <span class="nav-link-text">Security Settings</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-link" onclick="Auth.logout(); return false;">
+              <span class="nav-link-icon">🚪</span>
+              <span class="nav-link-text">Logout</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div id="adminEmail" style="margin-bottom: var(--space-2); font-weight: 500;"></div>
+        BC Food Services © 2026
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+      <!-- Content loaded dynamically via app.js -->
+      <div class="loading">
+        <div class="spinner"></div>
+      </div>
+    </main>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/auth.js"></script>
+  <script src="js/database.js"></script>
+  <script src="js/customers.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/invoice.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/app.js"></script>
+  
+  <script>
+    // Auth check before anything else
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Initialize auth first
+      await Auth.init();
+      
+      // Check if logged in, redirect to login if not
+      if (!Auth.requireAuth()) {
+        return; // Will redirect to login
+      }
+      
+      // Display admin email in sidebar footer
+      const adminEmail = Auth.getAdminEmail();
+      document.getElementById('adminEmail').textContent = adminEmail;
+      
+      // Initialize the app
+      App.init();
+    });
+  </script>
+</body>
+</html>
