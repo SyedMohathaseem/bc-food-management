@@ -383,7 +383,11 @@ const DB = {
   formatExtraDisplay(extra) {
     const menuItem = this.getMenuItem(extra.menuItemId);
     const name = menuItem ? menuItem.name : 'Item';
-    return `${name} – ₹${extra.price}`;
+    let display = `${name} – ₹${extra.price}`;
+    if (extra.notes && extra.notes.trim()) {
+      display += ` (${extra.notes})`;
+    }
+    return display;
   },
 
   // =====================================================

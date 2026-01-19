@@ -118,11 +118,15 @@ const Extras = {
     
     // Group by customer
     const grouped = {};
+    let grandTotal = 0;
+    
     extras.forEach(e => {
       if (!grouped[e.customerId]) {
-        grouped[e.customerId] = { breakfast: null, lunch: null, dinner: null };
+        grouped[e.customerId] = { breakfast: null, lunch: null, dinner: null, total: 0 };
       }
       grouped[e.customerId][e.mealType] = e;
+      grouped[e.customerId].total += e.price;
+      grandTotal += e.price;
     });
     
     let html = '<ul class="list">';
@@ -132,18 +136,32 @@ const Extras = {
       const meals = grouped[customerId];
       
       const mealDetails = [];
+      const mealNotes = [];
+      
       ['breakfast', 'lunch', 'dinner'].forEach(meal => {
         if (meals[meal]) {
           const item = DB.getMenuItem(meals[meal].menuItemId);
           mealDetails.push(`${this.getMealIcon(meal)} ${item?.name || 'Item'} ₹${meals[meal].price}`);
+          // Collect notes if present
+          if (meals[meal].notes && meals[meal].notes.trim()) {
+            mealNotes.push(`${this.getMealIcon(meal)} ${meals[meal].notes}`);
+          }
         }
       });
+      
+      const notesHtml = mealNotes.length > 0 
+        ? `<div class="list-item-notes">📝 ${mealNotes.join(' | ')}</div>` 
+        : '';
       
       html += `
         <li class="list-item">
           <div class="list-item-content">
             <div class="list-item-title">${customer?.name || 'Unknown'}</div>
             <div class="list-item-subtitle">${mealDetails.join(' • ')}</div>
+            ${notesHtml}
+          </div>
+          <div class="list-item-amount">
+            <span class="amount-badge">₹${meals.total}</span>
           </div>
           <div class="list-item-actions">
             <button class="btn btn-sm btn-outline" onclick="Extras.editCustomerEntries('${customerId}', '${date}')" title="Edit">
@@ -155,6 +173,15 @@ const Extras = {
     });
     
     html += '</ul>';
+    
+    // Add grand total
+    html += `
+      <div class="extras-grand-total">
+        <span>Day Total:</span>
+        <strong>₹${grandTotal.toLocaleString('en-IN')}</strong>
+      </div>
+    `;
+    
     return html;
   },
 
