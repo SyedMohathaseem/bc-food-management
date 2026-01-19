@@ -9,11 +9,11 @@ const Security = {
   // =====================================================
 
   render() {
-    const mainContent = document.getElementById('mainContent');
+    const pageContent = document.getElementById('pageContent');
     const adminEmail = Auth.getMaskedEmail();
     const logs = Auth.getCredentialLogs();
     
-    mainContent.innerHTML = `
+    pageContent.innerHTML = `
       <div class="page-header">
         <h1 class="page-title">🔐 Security Settings</h1>
       </div>

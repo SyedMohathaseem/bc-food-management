@@ -19,10 +19,10 @@ const Menu = {
   // =====================================================
 
   render() {
-    const mainContent = document.getElementById('mainContent');
+    const pageContent = document.getElementById('pageContent');
     const menuItems = DB.getMenuItems();
     
-    mainContent.innerHTML = `
+    pageContent.innerHTML = `
       <div class="card-header" style="background: none; padding: 0; border: none; margin-bottom: var(--space-6);">
         <h1>📋 Menu Items</h1>
         <button class="btn btn-primary" onclick="Menu.openForm()">

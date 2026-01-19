@@ -85,7 +85,7 @@
     
     <!-- Main Content -->
     <main class="main-content" id="mainContent">
-      <!-- Global Search Bar -->
+      <!-- Global Search Bar (Persistent) -->
       <div class="search-container" id="searchContainer">
         <div class="search-bar">
           <span class="search-icon">🔍</span>
@@ -95,9 +95,11 @@
         <div class="search-results" id="searchResults"></div>
       </div>
       
-      <!-- Content loaded dynamically via app.js -->
-      <div class="loading">
-        <div class="spinner"></div>
+      <!-- Dynamic Page Content (This is what gets replaced) -->
+      <div id="pageContent">
+        <div class="loading">
+          <div class="spinner"></div>
+        </div>
       </div>
     </main>
     

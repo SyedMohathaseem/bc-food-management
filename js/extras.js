@@ -10,11 +10,11 @@ const Extras = {
   // =====================================================
 
   render() {
-    const mainContent = document.getElementById('mainContent');
+    const pageContent = document.getElementById('pageContent');
     const today = new Date().toISOString().split('T')[0];
     const customers = DB.getActiveCustomers();
     
-    mainContent.innerHTML = `
+    pageContent.innerHTML = `
       <h1 class="mb-6">🍽️ Daily Extra Entry</h1>
       
       <!-- Entry Form -->

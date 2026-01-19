@@ -83,12 +83,12 @@ const App = {
       link.classList.toggle('active', link.dataset.page === page);
     });
 
-    // Load page content
-    const mainContent = document.getElementById('mainContent');
-    if (!mainContent) return;
+    // Load page content (use pageContent to preserve search bar)
+    const pageContent = document.getElementById('pageContent');
+    if (!pageContent) return;
 
     // Show loading
-    mainContent.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    pageContent.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
     // Simulate async load (for future server-side fetch)
     setTimeout(() => {
@@ -97,7 +97,7 @@ const App = {
   },
 
   renderPage(page) {
-    const mainContent = document.getElementById('mainContent');
+    const pageContent = document.getElementById('pageContent');
     
     switch (page) {
       case 'dashboard':
@@ -119,7 +119,7 @@ const App = {
         if (typeof Security !== 'undefined') Security.render();
         break;
       default:
-        mainContent.innerHTML = '<div class="card"><p>Page not found</p></div>';
+        pageContent.innerHTML = '<div class="card"><p>Page not found</p></div>';
     }
   },
 
@@ -129,9 +129,9 @@ const App = {
 
   renderDashboard() {
     const stats = DB.getStats();
-    const mainContent = document.getElementById('mainContent');
+    const pageContent = document.getElementById('pageContent');
     
-    mainContent.innerHTML = `
+    pageContent.innerHTML = `
       <h1 class="mb-6">📊 Dashboard</h1>
       
       <!-- Stats Cards -->

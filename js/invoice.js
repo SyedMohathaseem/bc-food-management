@@ -12,13 +12,13 @@ const Invoice = {
   // =====================================================
 
   render() {
-    const mainContent = document.getElementById('mainContent');
+    const pageContent = document.getElementById('pageContent');
     const customers = DB.getActiveCustomers();
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     
-    mainContent.innerHTML = `
+    pageContent.innerHTML = `
       <h1 class="mb-6">🧾 Invoice Generation</h1>
       
       <!-- Invoice Filters -->
