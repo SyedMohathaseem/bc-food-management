@@ -83,6 +83,12 @@ const App = {
       link.classList.toggle('active', link.dataset.page === page);
     });
 
+    // Hide search bar on extras page
+    const searchContainer = document.getElementById('searchContainer');
+    if (searchContainer) {
+      searchContainer.style.display = page === 'extras' ? 'none' : 'block';
+    }
+
     // Load page content (use pageContent to preserve search bar)
     const pageContent = document.getElementById('pageContent');
     if (!pageContent) return;

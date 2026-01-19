@@ -27,7 +27,7 @@ const Extras = {
           <div class="form-row">
             <div class="form-group">
               <label class="form-label required">Search Customer</label>
-              ${CustomerSearch.create('extraCustomerSearch', (customer) => Extras.onCustomerChange(customer), 'Type name or mobile...')}
+              ${CustomerSearch.create('extraCustomerSearch', (customer) => Extras.onCustomerChange(customer), 'Type name or mobile...', false)}
             </div>
             
             <div class="form-group">

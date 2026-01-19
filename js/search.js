@@ -373,11 +373,26 @@ const CustomerSearch = {
    * @param {string} containerId - ID of container element
    * @param {function} onSelect - Callback when customer is selected: (customer) => {}
    * @param {string} placeholder - Placeholder text
+   * @param {boolean} showVoice - Whether to show the voice search button (default: true)
    * @returns {string} HTML for the search input
    */
-  create(containerId, onSelect, placeholder = 'Type customer name or mobile...') {
+  create(containerId, onSelect, placeholder = 'Type customer name or mobile...', showVoice = true) {
     // Store callback
-    this.instances[containerId] = { onSelect };
+    this.instances[containerId] = { onSelect, showVoice };
+
+    const voiceBtnHtml = showVoice ? `
+          <button type="button" 
+                  class="customer-voice-btn" 
+                  id="${containerId}VoiceBtn"
+                  onclick="CustomerSearch.startVoice('${containerId}')"
+                  title="Voice Search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>` : '';
 
     return `
       <div class="customer-search-container" id="${containerId}">
@@ -397,18 +412,7 @@ const CustomerSearch = {
                  oninput="CustomerSearch.onInput('${containerId}')"
                  onkeydown="CustomerSearch.onKeydown(event, '${containerId}')" />
           <input type="hidden" id="${containerId}Value" required />
-          <button type="button" 
-                  class="customer-voice-btn" 
-                  id="${containerId}VoiceBtn"
-                  onclick="CustomerSearch.startVoice('${containerId}')"
-                  title="Voice Search">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
-            </svg>
-          </button>
+          ${voiceBtnHtml}
         </div>
         <div class="customer-search-results" id="${containerId}Results"></div>
         <div class="customer-selected" id="${containerId}Selected" style="display: none;">
@@ -423,6 +427,9 @@ const CustomerSearch = {
    * Initialize after HTML is rendered
    */
   init(containerId) {
+    const instance = this.instances[containerId];
+    if (!instance?.showVoice) return;
+
     // Check voice support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
