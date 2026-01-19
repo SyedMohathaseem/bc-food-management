@@ -31,7 +31,7 @@ const Invoice = {
           <div class="form-row-3">
             <div class="form-group">
               <label class="form-label required">Search Customer</label>
-              ${CustomerSearch.create('invoiceCustomerSearch', null, 'Type name or mobile...')}
+              ${CustomerSearch.create('invoiceCustomerSearch', null, 'Type name or mobile...', false)}
             </div>
             
             <div class="form-group">
