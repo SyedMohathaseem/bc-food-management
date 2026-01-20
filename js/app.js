@@ -38,14 +38,11 @@ const App = {
     const sidebarClose = document.getElementById('sidebarClose');
 
     if (sidebarToggle) {
-      sidebarToggle.addEventListener('click', () => {
-        const isActive = sidebar?.classList.contains('active');
-        if (isActive) {
-          this.closeSidebar();
-        } else {
-          this.openSidebar();
-        }
-      });
+      sidebarToggle.addEventListener('click', () => this.openSidebar());
+    }
+
+    if (sidebarClose) {
+      sidebarClose.addEventListener('click', () => this.closeSidebar());
     }
 
     if (sidebarOverlay) {
@@ -68,14 +65,12 @@ const App = {
   openSidebar() {
     document.getElementById('sidebar')?.classList.add('active');
     document.getElementById('sidebarOverlay')?.classList.add('active');
-    document.getElementById('sidebarToggle').textContent = '✕';
     document.body.style.overflow = 'hidden';
   },
 
   closeSidebar() {
     document.getElementById('sidebar')?.classList.remove('active');
     document.getElementById('sidebarOverlay')?.classList.remove('active');
-    document.getElementById('sidebarToggle').textContent = '☰';
     document.body.style.overflow = '';
   },
 
