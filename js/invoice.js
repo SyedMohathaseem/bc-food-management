@@ -45,12 +45,12 @@ const Invoice = {
           </div>
 
           <div class="form-row-3">
-            <div class="form-group">
+            <div class="form-group" style="grid-column: span 1;">
               <label class="form-label required">Search Customer</label>
               ${CustomerSearch.create('invoiceCustomerSearch', null, 'Type name or mobile...', false)}
             </div>
             
-            <div id="monthlySelectors" class="form-row" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+            <div id="monthlySelectors" class="form-row" style="grid-column: span 2; display: grid;">
               <div class="form-group">
                 <label class="form-label required">Month</label>
                 <select class="form-control form-select" id="invoiceMonth" required>
