@@ -79,6 +79,7 @@ const Invoice = {
       </div>
       
       <!-- Invoice Preview -->
+      <div id="invoicePreview" style="display: none; margin-top: var(--space-6);"></div>
     `;
 
     // Set default filter for monthly period
@@ -246,13 +247,11 @@ const Invoice = {
           <h3 style="margin-bottom: var(--space-4); text-align: center;">📊 INVOICE SUMMARY</h3>
           
           <div class="invoice-summary-row">
-            <span>${data.customer.subscriptionType === 'monthly' && data.periodType === 'monthly' ? 'Monthly' : 'Daily'} Subscription:</span>
+            <span>${data.periodType === 'monthly' ? 'Monthly' : 'Daily'} Subscription:</span>
             <span>
-              ${data.customer.subscriptionType === 'monthly' && data.periodType === 'monthly'
+              ${data.periodType === 'monthly'
                 ? `<strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong>` 
-                : data.periodType === 'daily'
-                  ? `<strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong>`
-                  : `₹${data.summary.dailyAmount} × ${data.summary.daysInMonth} days = <strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong>`
+                : `₹${data.summary.dailyAmount} × ${data.summary.daysInMonth} days = <strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong>`
               }
             </span>
           </div>

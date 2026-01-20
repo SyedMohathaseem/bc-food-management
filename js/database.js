@@ -357,6 +357,7 @@ const DB = {
       customer,
       month,
       year,
+      periodType: 'monthly',
       monthName: new Date(year, month).toLocaleString('default', { month: 'long' }),
       dateWiseData,
       summary: {
