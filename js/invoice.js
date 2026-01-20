@@ -79,10 +79,10 @@ const Invoice = {
       </div>
       
       <!-- Invoice Preview -->
-      <div id="invoicePreview" style="display: none;">
-        <!-- Will be populated by generate() -->
-      </div>
     `;
+
+    // Set default filter for monthly period
+    CustomerSearch.setFilter('invoiceCustomerSearch', c => c.subscriptionType === 'monthly');
   },
 
   getMonthOptions(selectedMonth) {
@@ -107,6 +107,22 @@ const Invoice = {
   togglePeriod(type) {
     document.getElementById('monthlySelectors').style.display = type === 'monthly' ? 'grid' : 'none';
     document.getElementById('dailySelector').style.display = type === 'daily' ? 'block' : 'none';
+    
+    // Update filter
+    const filterFn = type === 'monthly' 
+      ? (c => c.subscriptionType === 'monthly')
+      : (c => c.subscriptionType === 'daily');
+    
+    CustomerSearch.setFilter('invoiceCustomerSearch', filterFn);
+
+    // Check if currently selected customer matches new filter
+    const selectedId = CustomerSearch.getValue('invoiceCustomerSearch');
+    if (selectedId) {
+      const customer = DB.getCustomer(selectedId);
+      if (customer && !filterFn(customer)) {
+        CustomerSearch.clear('invoiceCustomerSearch');
+      }
+    }
     
     // Update simple validation
     document.getElementById('invoiceMonth').required = (type === 'monthly');

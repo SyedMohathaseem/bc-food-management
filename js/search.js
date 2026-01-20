@@ -378,7 +378,7 @@ const CustomerSearch = {
    */
   create(containerId, onSelect, placeholder = 'Type customer name or mobile...', showVoice = true) {
     // Store callback
-    this.instances[containerId] = { onSelect, showVoice };
+    this.instances[containerId] = { onSelect, showVoice, filter: null };
 
     const voiceBtnHtml = showVoice ? `
           <button type="button" 
@@ -463,7 +463,13 @@ const CustomerSearch = {
 
   search(containerId, query) {
     const normalizedQuery = query.toLowerCase().trim();
-    const customers = DB.getActiveCustomers();
+    let customers = DB.getActiveCustomers();
+    
+    // Apply instance filter if exists
+    const instance = this.instances[containerId];
+    if (instance?.filter) {
+      customers = customers.filter(instance.filter);
+    }
     
     const results = customers.filter(c => 
       c.name.toLowerCase().includes(normalizedQuery) ||
@@ -526,6 +532,12 @@ const CustomerSearch = {
     const instance = this.instances[containerId];
     if (instance?.onSelect) {
       instance.onSelect(null);
+    }
+  },
+
+  setFilter(containerId, filterFn) {
+    if (this.instances[containerId]) {
+      this.instances[containerId].filter = filterFn;
     }
   },
 

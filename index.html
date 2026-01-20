@@ -15,15 +15,20 @@
 <body>
   <div class="app-container">
     
-    <!-- Mobile Sidebar Toggle -->
-    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+    <!-- Mobile Header -->
+    <header class="mobile-top-bar">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle Navigation">☰</button>
+      <div class="mobile-logo">
+        <span class="sidebar-logo">🍛</span>
+        <span class="sidebar-brand">Inas <span>Cafe</span></span>
+      </div>
+    </header>
     
     <!-- Sidebar Overlay (Mobile) -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-close" id="sidebarClose">✕</button>
       
       <div class="sidebar-header">
         <span class="sidebar-logo">🍛</span>
