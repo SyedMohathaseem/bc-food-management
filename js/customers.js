@@ -159,30 +159,30 @@ const Customers = {
         .join(' ');
 
       const advanceHtml = c.advanceAmount > 0 
-        ? `<span class="badge badge-success" style="background: var(--success-light); color: var(--success); margin-left: var(--space-2);">Paid: ₹${c.advanceAmount}</span>`
+        ? `<span class="badge badge-success customer-advance-badge">Advance: ₹${c.advanceAmount}</span>`
         : '';
       
       html += `
-        <li class="list-item">
+        <li class="list-item customer-list-item">
           <div class="list-item-content">
             <div class="list-item-title">
-              ${c.name} 
-              <span style="font-size: 1.2rem; margin-left: var(--space-2);">${mealTimesHtml}</span>
+              <span class="customer-name">${c.name}</span>
+              <span class="customer-meal-icons">${mealTimesHtml}</span>
               ${advanceHtml}
             </div>
             <div class="list-item-subtitle">
-              📱 ${c.mobile} • ₹${c.dailyAmount}/${c.subscriptionType === 'monthly' ? 'month' : 'day'} • ${c.subscriptionType}
-              ${c.referral ? ` • 👤 Ref: ${c.referral}` : ''}
+              <span class="customer-meta">📱 ${c.mobile}</span>
+              <span class="customer-meta">💰 ₹${c.dailyAmount}/${c.subscriptionType === 'monthly' ? 'month' : 'day'}</span>
+              <span class="customer-meta">📝 ${c.subscriptionType}</span>
+              ${c.referral ? `<span class="customer-meta">👤 Ref: ${c.referral}</span>` : ''}
             </div>
           </div>
-          <span class="badge badge-${statusClass}">${statusLabel}</span>
-          <div class="list-item-actions">
-            <button class="btn btn-sm btn-outline" onclick="Customers.edit('${c.id}')" title="Edit">
-              ✏️
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="Customers.delete('${c.id}')" title="Delete">
-              🗑️
-            </button>
+          <div class="customer-status-actions">
+            <span class="badge badge-${statusClass}">${statusLabel}</span>
+            <div class="list-item-actions">
+              <button class="btn btn-sm btn-outline" onclick="Customers.edit('${c.id}')" title="Edit">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="Customers.delete('${c.id}')" title="Delete">🗑️</button>
+            </div>
           </div>
         </li>
       `;
