@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Customer Management Module
+ * Inas Cafe - Customer Management Module
  * Handles customer CRUD operations
  */
 

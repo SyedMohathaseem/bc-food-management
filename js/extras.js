@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Daily Extras Module
+ * Inas Cafe - Daily Extras Module
  * Handles daily extra food item entries
  * CRITICAL LOGIC: When extra is added for ONE meal, other meals for that date are marked as "-"
  */

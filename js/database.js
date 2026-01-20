@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Database Layer
+ * Inas Cafe - Database Layer
  * LocalStorage-based data persistence
  */
 

@@ -1,4 +1,4 @@
-# BC Food Management
+# Inas Cafe Management
 
 A complete, commercial-ready web application for daily food subscription billing and extra item invoicing.
 
@@ -22,7 +22,7 @@ A complete, commercial-ready web application for daily food subscription billing
 ## 🚀 Getting Started
 
 ### Default Login Credentials
-- **Email**: admin@bcfood.com
+- **Email**: admin@inascafe.com
 - **Password**: Admin@123
 
 > ⚠️ Change these immediately after first login!
@@ -78,7 +78,7 @@ This app uses **localStorage** for data persistence. All data is stored locally 
 
 ## 📝 License
 
-This project is for commercial use by BC Food Services.
+This project is for commercial use by Inas Cafe Services.
 
 ---
 

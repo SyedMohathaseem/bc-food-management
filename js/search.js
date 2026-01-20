@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Global Search Module
+ * Inas Cafe - Global Search Module
  * Real-time search with voice input support
  */
 

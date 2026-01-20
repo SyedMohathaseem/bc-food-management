@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Authentication Module
+ * Inas Cafe - Authentication Module
  * Handles admin login, session management, and security
  */
 
@@ -47,7 +47,7 @@ const Auth = {
    * Create default admin credentials
    */
   async createDefaultAdmin() {
-    const defaultEmail = 'admin@bcfood.com';
+    const defaultEmail = 'admin@inascafe.com';
     const defaultPassword = 'Admin@123';
     
     // Hash the password
@@ -61,7 +61,7 @@ const Auth = {
     };
 
     localStorage.setItem(this.KEYS.ADMIN, JSON.stringify(admin));
-    console.log('Default admin created. Email: admin@bcfood.com, Password: Admin@123');
+    console.log('Default admin created. Email: admin@inascafe.com, Password: Admin@123');
   },
 
   // =====================================================

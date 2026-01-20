@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Invoice Generation Module
+ * Inas Cafe - Invoice Generation Module
  * Generates monthly invoices with PDF and print support
  */
 
@@ -135,7 +135,7 @@ const Invoice = {
       <div class="invoice-container card" id="invoiceDocument">
         <!-- Header -->
         <div class="invoice-header">
-          <div class="invoice-logo">🍛 BC FOOD SERVICES</div>
+          <div class="invoice-logo">🍛 INAS CAFE SERVICES</div>
           <div class="invoice-title">Monthly Invoice - ${data.monthName} ${data.year}</div>
         </div>
         

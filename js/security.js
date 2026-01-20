@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Security Settings Module
+ * Inas Cafe - Security Settings Module
  * Handles security settings page UI and credential management
  */
 

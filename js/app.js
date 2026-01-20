@@ -1,5 +1,5 @@
 /**
- * BC Food Subscription App - Main Application
+ * Inas Cafe - Main Application
  * Handles navigation, toasts, modals, and page loading
  */
 
