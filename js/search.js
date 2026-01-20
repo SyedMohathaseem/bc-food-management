@@ -411,7 +411,7 @@ const CustomerSearch = {
                  onfocus="CustomerSearch.onFocus('${containerId}')"
                  oninput="CustomerSearch.onInput('${containerId}')"
                  onkeydown="CustomerSearch.onKeydown(event, '${containerId}')" />
-          <input type="hidden" id="${containerId}Value" required />
+          <input type="hidden" id="${containerId}Value" />
           ${voiceBtnHtml}
         </div>
         <div class="customer-search-results" id="${containerId}Results"></div>

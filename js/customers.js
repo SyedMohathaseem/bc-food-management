@@ -99,8 +99,7 @@ const Customers = {
                 
                 <div class="form-group">
                   <label class="form-label">Referral (Optional)</label>
-                  <input type="text" class="form-control" id="custReferral" 
-                         placeholder="e.g., Friend name, Zomato">
+                  ${CustomerSearch.create('custReferralSearch', null, 'Search existing or type name...', false)}
                 </div>
               </div>
               
@@ -228,7 +227,13 @@ const Customers = {
       });
       
       document.getElementById('custAdvance').value = customer.advanceAmount || 0;
-      document.getElementById('custReferral').value = customer.referral || '';
+      
+      // Update referral search
+      CustomerSearch.clear('custReferralSearch');
+      if (customer.referral) {
+        const referralInput = document.getElementById('custReferralSearchInput');
+        if (referralInput) referralInput.value = customer.referral;
+      }
       
       document.getElementById('custStartDate').value = customer.startDate;
       document.getElementById('custStatus').value = customer.status;
@@ -241,7 +246,7 @@ const Customers = {
       // Default all meal times checked
       document.querySelectorAll('input[name="custMealType"]').forEach(cb => cb.checked = true);
       document.getElementById('custAdvance').value = 0;
-      document.getElementById('custReferral').value = '';
+      CustomerSearch.clear('custReferralSearch');
     }
     
     // Add listener for sub type
@@ -275,10 +280,19 @@ const Customers = {
       dailyAmount: parseFloat(document.getElementById('custAmount').value),
       mealTimes: Array.from(document.querySelectorAll('input[name="custMealType"]:checked')).map(cb => cb.value),
       advanceAmount: parseFloat(document.getElementById('custAdvance').value) || 0,
-      referral: document.getElementById('custReferral').value.trim(),
+      referral: '', // Placeholder, set below
       startDate: document.getElementById('custStartDate').value,
       status: document.getElementById('custStatus').value
     };
+    
+    // Get referral - from search selection or manual text
+    const referralId = CustomerSearch.getValue('custReferralSearch');
+    if (referralId) {
+      const refCustomer = DB.getCustomer(referralId);
+      data.referral = refCustomer ? `${refCustomer.name} (${refCustomer.mobile})` : '';
+    } else {
+      data.referral = document.getElementById('custReferralSearchInput')?.value.trim() || '';
+    }
     
     // Validation
     if (!data.name || !data.mobile) {
