@@ -137,6 +137,9 @@ const DB = {
       address: customer.address || '',
       subscriptionType: customer.subscriptionType || 'daily',
       dailyAmount: parseFloat(customer.dailyAmount) || 300,
+      mealTimes: customer.mealTimes || ['breakfast', 'lunch', 'dinner'],
+      advanceAmount: parseFloat(customer.advanceAmount) || 0,
+      referral: customer.referral || '',
       startDate: customer.startDate || new Date().toISOString().split('T')[0],
       status: customer.status || 'active'
     });
@@ -145,6 +148,9 @@ const DB = {
   updateCustomer(id, updates) {
     if (updates.dailyAmount) {
       updates.dailyAmount = parseFloat(updates.dailyAmount);
+    }
+    if (updates.advanceAmount !== undefined) {
+      updates.advanceAmount = parseFloat(updates.advanceAmount) || 0;
     }
     return this.update(this.KEYS.CUSTOMERS, id, updates);
   },
@@ -225,10 +231,10 @@ const DB = {
    * @param {string} mealType - breakfast | lunch | dinner
    * @returns {Object|null}
    */
-  getExtra(customerId, date, mealType) {
-    return this.getDailyExtras().find(
+  getExtras(customerId, date, mealType) {
+    return this.getDailyExtras().filter(
       e => e.customerId === customerId && e.date === date && e.mealType === mealType
-    ) || null;
+    );
   },
 
   /**
@@ -242,37 +248,21 @@ const DB = {
     const extras = this.getDailyExtras();
     const { customerId, date, mealType, menuItemId, price, notes } = extra;
     
-    // Check if entry already exists for this customer/date/meal
-    const existingIndex = extras.findIndex(
-      e => e.customerId === customerId && e.date === date && e.mealType === mealType
-    );
+    // Create new entry (Removed overwriting logic to allow multiple items)
+    const newExtra = {
+      id: `extr_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      customerId,
+      date,
+      mealType,
+      menuItemId,
+      price: parseFloat(price),
+      notes: notes || '',
+      createdAt: new Date().toISOString()
+    };
     
-    if (existingIndex !== -1) {
-      // Update existing entry
-      extras[existingIndex] = {
-        ...extras[existingIndex],
-        menuItemId,
-        price: parseFloat(price),
-        notes: notes || '',
-        updatedAt: new Date().toISOString()
-      };
-    } else {
-      // Add new entry
-      const newExtra = {
-        id: `extr_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-        customerId,
-        date,
-        mealType,
-        menuItemId,
-        price: parseFloat(price),
-        notes: notes || '',
-        createdAt: new Date().toISOString()
-      };
-      extras.push(newExtra);
-    }
-    
+    extras.push(newExtra);
     this.saveAll(this.KEYS.DAILY_EXTRAS, extras);
-    return this.getExtra(customerId, date, mealType);
+    return newExtra;
   },
 
   /**
@@ -335,24 +325,31 @@ const DB = {
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       
-      const breakfast = extrasMap[`${dateStr}_breakfast`];
-      const lunch = extrasMap[`${dateStr}_lunch`];
-      const dinner = extrasMap[`${dateStr}_dinner`];
+      const dayBreakfasts = extras.filter(e => e.date === dateStr && e.mealType === 'breakfast');
+      const dayLunches = extras.filter(e => e.date === dateStr && e.mealType === 'lunch');
+      const dayDinners = extras.filter(e => e.date === dateStr && e.mealType === 'dinner');
       
-      if (breakfast) breakfastTotal += breakfast.price;
-      if (lunch) lunchTotal += lunch.price;
-      if (dinner) dinnerTotal += dinner.price;
+      dayBreakfasts.forEach(e => breakfastTotal += e.price);
+      dayLunches.forEach(e => lunchTotal += e.price);
+      dayDinners.forEach(e => dinnerTotal += e.price);
       
       dateWiseData.push({
         date: dateStr,
         day,
-        breakfast: breakfast ? this.formatExtraDisplay(breakfast) : '-',
-        lunch: lunch ? this.formatExtraDisplay(lunch) : '-',
-        dinner: dinner ? this.formatExtraDisplay(dinner) : '-'
+        breakfast: dayBreakfasts.length > 0 ? dayBreakfasts.map(e => this.formatExtraDisplay(e)).join('<br>') : '-',
+        lunch: dayLunches.length > 0 ? dayLunches.map(e => this.formatExtraDisplay(e)).join('<br>') : '-',
+        dinner: dayDinners.length > 0 ? dayDinners.map(e => this.formatExtraDisplay(e)).join('<br>') : '-'
       });
     }
 
-    const subscriptionTotal = customer.dailyAmount * daysInMonth;
+    // Calculate subscription total based on type
+    let subscriptionTotal = 0;
+    if (customer.subscriptionType === 'monthly') {
+      subscriptionTotal = customer.dailyAmount; // Treating dailyAmount field as Monthly Amount
+    } else {
+      subscriptionTotal = customer.dailyAmount * daysInMonth; // Daily calculation
+    }
+
     const extrasTotal = breakfastTotal + lunchTotal + dinnerTotal;
     const grandTotal = subscriptionTotal + extrasTotal;
 
@@ -365,7 +362,62 @@ const DB = {
       summary: {
         daysInMonth,
         dailyAmount: customer.dailyAmount,
-        subscriptionTotal,
+        subscriptionTotal: subscriptionTotal,
+        breakfastTotal,
+        lunchTotal,
+        dinnerTotal,
+        extrasTotal,
+        grandTotal
+      }
+    };
+  },
+
+  /**
+   * Get invoice data for a single day
+   * @param {string} customerId 
+   * @param {string} date - YYYY-MM-DD
+   * @returns {Object}
+   */
+  generateDailyInvoiceData(customerId, date) {
+    const customer = this.getCustomer(customerId);
+    if (!customer) return null;
+
+    const extras = DB.getDailyExtras().filter(e => e.customerId === customerId && e.date === date);
+    
+    let breakfastTotal = 0;
+    let lunchTotal = 0;
+    let dinnerTotal = 0;
+    
+    extras.forEach(e => {
+      if (e.mealType === 'breakfast') breakfastTotal += e.price;
+      if (e.mealType === 'lunch') lunchTotal += e.price;
+      if (e.mealType === 'dinner') dinnerTotal += e.price;
+    });
+
+    const subscriptionTotal = customer.subscriptionType === 'monthly' ? 0 : customer.dailyAmount; 
+    const extrasTotal = breakfastTotal + lunchTotal + dinnerTotal;
+    const grandTotal = subscriptionTotal + extrasTotal;
+
+    const dateObj = new Date(date);
+
+    return {
+      customer,
+      date,
+      periodType: 'daily',
+      monthName: dateObj.toLocaleString('default', { month: 'long' }),
+      year: dateObj.getFullYear(),
+      day: dateObj.getDate(),
+      dateWiseData: [{
+        date,
+        day: dateObj.getDate(),
+        breakfast: extras.filter(e => e.mealType === 'breakfast').map(e => this.formatExtraDisplay(e)).join('<br>') || '-',
+        lunch: extras.filter(e => e.mealType === 'lunch').map(e => this.formatExtraDisplay(e)).join('<br>') || '-',
+        dinner: extras.filter(e => e.mealType === 'dinner').map(e => this.formatExtraDisplay(e)).join('<br>') || '-'
+      }],
+      summary: {
+        daysInMonth: 1,
+        dailyAmount: customer.dailyAmount,
+        subscriptionTotal: subscriptionTotal,
         breakfastTotal,
         lunchTotal,
         dinnerTotal,

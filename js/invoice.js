@@ -28,24 +28,47 @@ const Invoice = {
         </div>
         
         <form id="invoiceForm" onsubmit="Invoice.generate(event)">
+          <div class="form-group mb-4">
+            <label class="form-label">Period Type</label>
+            <div class="form-check-group">
+              <label class="form-check">
+                <input type="radio" class="form-check-input" name="periodType" value="monthly" checked 
+                       onchange="Invoice.togglePeriod('monthly')">
+                <span class="form-check-label">📅 Monthly</span>
+              </label>
+              <label class="form-check">
+                <input type="radio" class="form-check-input" name="periodType" value="daily" 
+                       onchange="Invoice.togglePeriod('daily')">
+                <span class="form-check-label">☀️ Daily</span>
+              </label>
+            </div>
+          </div>
+
           <div class="form-row-3">
             <div class="form-group">
               <label class="form-label required">Search Customer</label>
               ${CustomerSearch.create('invoiceCustomerSearch', null, 'Type name or mobile...', false)}
             </div>
             
-            <div class="form-group">
-              <label class="form-label required">Month</label>
-              <select class="form-control form-select" id="invoiceMonth" required>
-                ${this.getMonthOptions(currentMonth)}
-              </select>
+            <div id="monthlySelectors" class="form-row" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+              <div class="form-group">
+                <label class="form-label required">Month</label>
+                <select class="form-control form-select" id="invoiceMonth" required>
+                  ${this.getMonthOptions(currentMonth)}
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label required">Year</label>
+                <select class="form-control form-select" id="invoiceYear" required>
+                  ${this.getYearOptions(currentYear)}
+                </select>
+              </div>
             </div>
-            
-            <div class="form-group">
-              <label class="form-label required">Year</label>
-              <select class="form-control form-select" id="invoiceYear" required>
-                ${this.getYearOptions(currentYear)}
-              </select>
+
+            <div id="dailySelector" class="form-group" style="display: none; grid-column: span 2;">
+              <label class="form-label required">Select Date</label>
+              <input type="date" class="form-control" id="invoiceDate" value="${new Date().toISOString().split('T')[0]}">
             </div>
           </div>
           
@@ -81,6 +104,16 @@ const Invoice = {
     return years.join('');
   },
 
+  togglePeriod(type) {
+    document.getElementById('monthlySelectors').style.display = type === 'monthly' ? 'grid' : 'none';
+    document.getElementById('dailySelector').style.display = type === 'daily' ? 'block' : 'none';
+    
+    // Update simple validation
+    document.getElementById('invoiceMonth').required = (type === 'monthly');
+    document.getElementById('invoiceYear').required = (type === 'monthly');
+    document.getElementById('invoiceDate').required = (type === 'daily');
+  },
+
   // =====================================================
   // Generate Invoice
   // =====================================================
@@ -89,16 +122,26 @@ const Invoice = {
     event.preventDefault();
     
     const customerId = CustomerSearch.getValue('invoiceCustomerSearch');
-    const month = parseInt(document.getElementById('invoiceMonth').value);
-    const year = parseInt(document.getElementById('invoiceYear').value);
+    const periodType = document.querySelector('input[name="periodType"]:checked').value;
     
     if (!customerId) {
       App.showToast('Please select a customer', 'error');
       return;
     }
-    
-    // Generate invoice data
-    const data = DB.generateInvoiceData(customerId, year, month);
+
+    let data;
+    if (periodType === 'monthly') {
+      const month = parseInt(document.getElementById('invoiceMonth').value);
+      const year = parseInt(document.getElementById('invoiceYear').value);
+      data = DB.generateInvoiceData(customerId, year, month);
+    } else {
+      const date = document.getElementById('invoiceDate').value;
+      if (!date) {
+        App.showToast('Please select a date', 'error');
+        return;
+      }
+      data = DB.generateDailyInvoiceData(customerId, date);
+    }
     
     if (!data) {
       App.showToast('Unable to generate invoice', 'error');
@@ -136,7 +179,10 @@ const Invoice = {
         <!-- Header -->
         <div class="invoice-header">
           <div class="invoice-logo">🍛 INAS CAFE SERVICES</div>
-          <div class="invoice-title">Monthly Invoice - ${data.monthName} ${data.year}</div>
+          <div class="invoice-title">
+            ${data.periodType === 'daily' ? 'Daily Invoice' : 'Monthly Invoice'} - 
+            ${data.periodType === 'daily' ? data.date : `${data.monthName} ${data.year}`}
+          </div>
         </div>
         
         <!-- Customer Details -->
@@ -149,7 +195,7 @@ const Invoice = {
               <strong>Mobile:</strong> ${data.customer.mobile}
             </div>
             <div>
-              <strong>Subscription:</strong> ${data.customer.subscriptionType} - ₹${data.customer.dailyAmount}/day
+              <strong>Subscription:</strong> ${data.customer.subscriptionType === 'monthly' ? 'Monthly' : 'Daily'} - ₹${data.customer.dailyAmount}/${data.customer.subscriptionType === 'monthly' ? 'month' : 'day'}
             </div>
             ${data.customer.address ? `<div><strong>Address:</strong> ${data.customer.address}</div>` : ''}
           </div>
@@ -184,8 +230,15 @@ const Invoice = {
           <h3 style="margin-bottom: var(--space-4); text-align: center;">📊 INVOICE SUMMARY</h3>
           
           <div class="invoice-summary-row">
-            <span>Daily Subscription:</span>
-            <span>₹${data.summary.dailyAmount} × ${data.summary.daysInMonth} days = <strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong></span>
+            <span>${data.customer.subscriptionType === 'monthly' && data.periodType === 'monthly' ? 'Monthly' : 'Daily'} Subscription:</span>
+            <span>
+              ${data.customer.subscriptionType === 'monthly' && data.periodType === 'monthly'
+                ? `<strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong>` 
+                : data.periodType === 'daily'
+                  ? `<strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong>`
+                  : `₹${data.summary.dailyAmount} × ${data.summary.daysInMonth} days = <strong>₹${data.summary.subscriptionTotal.toLocaleString('en-IN')}</strong>`
+              }
+            </span>
           </div>
           
           <hr style="margin: var(--space-4) 0; border: none; border-top: 1px dashed var(--neutral-300);">

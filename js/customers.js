@@ -72,6 +72,38 @@ const Customers = {
                 </div>
               </div>
               
+              <div class="form-group">
+                <label class="form-label required">Food Times</label>
+                <div class="form-check-group" style="margin-bottom: var(--space-4);">
+                  <label class="form-check">
+                    <input type="checkbox" class="form-check-input" name="custMealType" value="breakfast" checked>
+                    <span class="form-check-label">🌅 Breakfast</span>
+                  </label>
+                  <label class="form-check">
+                    <input type="checkbox" class="form-check-input" name="custMealType" value="lunch" checked>
+                    <span class="form-check-label">☀️ Lunch</span>
+                  </label>
+                  <label class="form-check">
+                    <input type="checkbox" class="form-check-input" name="custMealType" value="dinner" checked>
+                    <span class="form-check-label">🌙 Dinner</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Advance Amount Received (₹)</label>
+                  <input type="number" class="form-control" id="custAdvance" 
+                         placeholder="0" min="0" step="10">
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">Referral (Optional)</label>
+                  <input type="text" class="form-control" id="custReferral" 
+                         placeholder="e.g., Friend name, Zomato">
+                </div>
+              </div>
+              
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label required">Start Date</label>
@@ -121,12 +153,27 @@ const Customers = {
       const statusClass = c.status === 'active' ? 'success' : 'warning';
       const statusLabel = c.status === 'active' ? 'Active' : 'Paused';
       
+      // Format meal times display
+      const mealMap = { breakfast: '🌅', lunch: '☀️', dinner: '🌙' };
+      const mealTimesHtml = (c.mealTimes || ['breakfast', 'lunch', 'dinner'])
+        .map(m => mealMap[m] || '')
+        .join(' ');
+
+      const advanceHtml = c.advanceAmount > 0 
+        ? `<span class="badge badge-success" style="background: var(--success-light); color: var(--success); margin-left: var(--space-2);">Paid: ₹${c.advanceAmount}</span>`
+        : '';
+      
       html += `
         <li class="list-item">
           <div class="list-item-content">
-            <div class="list-item-title">${c.name}</div>
+            <div class="list-item-title">
+              ${c.name} 
+              <span style="font-size: 1.2rem; margin-left: var(--space-2);">${mealTimesHtml}</span>
+              ${advanceHtml}
+            </div>
             <div class="list-item-subtitle">
-              📱 ${c.mobile} • ₹${c.dailyAmount}/day • ${c.subscriptionType}
+              📱 ${c.mobile} • ₹${c.dailyAmount}/${c.subscriptionType === 'monthly' ? 'month' : 'day'} • ${c.subscriptionType}
+              ${c.referral ? ` • 👤 Ref: ${c.referral}` : ''}
             </div>
           </div>
           <span class="badge badge-${statusClass}">${statusLabel}</span>
@@ -171,16 +218,45 @@ const Customers = {
       document.getElementById('custMobile').value = customer.mobile;
       document.getElementById('custAddress').value = customer.address || '';
       document.getElementById('custSubType').value = customer.subscriptionType;
+      this.updateAmountLabel(customer.subscriptionType);
       document.getElementById('custAmount').value = customer.dailyAmount;
+      
+      // Populate meal times
+      const mealTimes = customer.mealTimes || ['breakfast', 'lunch', 'dinner'];
+      document.querySelectorAll('input[name="custMealType"]').forEach(cb => {
+        cb.checked = mealTimes.includes(cb.value);
+      });
+      
+      document.getElementById('custAdvance').value = customer.advanceAmount || 0;
+      document.getElementById('custReferral').value = customer.referral || '';
+      
       document.getElementById('custStartDate').value = customer.startDate;
       document.getElementById('custStatus').value = customer.status;
     } else {
       // Add mode
       title.textContent = 'Add Customer';
       document.getElementById('custStartDate').value = new Date().toISOString().split('T')[0];
+      this.updateAmountLabel('daily'); // Default
+      
+      // Default all meal times checked
+      document.querySelectorAll('input[name="custMealType"]').forEach(cb => cb.checked = true);
+      document.getElementById('custAdvance').value = 0;
+      document.getElementById('custReferral').value = '';
     }
     
+    // Add listener for sub type
+    const subTypeSelect = document.getElementById('custSubType');
+    subTypeSelect.onchange = (e) => this.updateAmountLabel(e.target.value);
+    
     App.openModal('customerModal');
+  },
+
+  updateAmountLabel(type) {
+    const label = document.querySelector('label[for="custAmount"]') || 
+                  document.getElementById('custAmount').previousElementSibling;
+    if (label) {
+      label.textContent = type === 'monthly' ? 'Monthly Amount (₹)' : 'Daily Amount (₹)';
+    }
   },
 
   closeForm() {
@@ -197,6 +273,9 @@ const Customers = {
       address: document.getElementById('custAddress').value.trim(),
       subscriptionType: document.getElementById('custSubType').value,
       dailyAmount: parseFloat(document.getElementById('custAmount').value),
+      mealTimes: Array.from(document.querySelectorAll('input[name="custMealType"]:checked')).map(cb => cb.value),
+      advanceAmount: parseFloat(document.getElementById('custAdvance').value) || 0,
+      referral: document.getElementById('custReferral').value.trim(),
       startDate: document.getElementById('custStartDate').value,
       status: document.getElementById('custStatus').value
     };

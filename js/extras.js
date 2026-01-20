@@ -122,9 +122,9 @@ const Extras = {
     
     extras.forEach(e => {
       if (!grouped[e.customerId]) {
-        grouped[e.customerId] = { breakfast: null, lunch: null, dinner: null, total: 0 };
+        grouped[e.customerId] = { items: [], total: 0 };
       }
-      grouped[e.customerId][e.mealType] = e;
+      grouped[e.customerId].items.push(e);
       grouped[e.customerId].total += e.price;
       grandTotal += e.price;
     });
@@ -138,14 +138,11 @@ const Extras = {
       const mealDetails = [];
       const mealNotes = [];
       
-      ['breakfast', 'lunch', 'dinner'].forEach(meal => {
-        if (meals[meal]) {
-          const item = DB.getMenuItem(meals[meal].menuItemId);
-          mealDetails.push(`${this.getMealIcon(meal)} ${item?.name || 'Item'} ₹${meals[meal].price}`);
-          // Collect notes if present
-          if (meals[meal].notes && meals[meal].notes.trim()) {
-            mealNotes.push(`${this.getMealIcon(meal)} ${meals[meal].notes}`);
-          }
+      meals.items.forEach(e => {
+        const item = DB.getMenuItem(e.menuItemId);
+        mealDetails.push(`${this.getMealIcon(e.mealType)} ${item?.name || 'Item'} ₹${e.price}`);
+        if (e.notes && e.notes.trim()) {
+          mealNotes.push(`${this.getMealIcon(e.mealType)} ${e.notes}`);
         }
       });
       
@@ -196,6 +193,39 @@ const Extras = {
 
   onCustomerChange(customer) {
     this.updateStatus();
+    this.restrictMealTypes(customer);
+  },
+
+  restrictMealTypes(customer) {
+    const mealInputs = document.querySelectorAll('input[name="mealType"]');
+    const subscribedMeals = customer ? (customer.mealTimes || []) : ['breakfast', 'lunch', 'dinner'];
+    
+    let currentCheckedStillValid = false;
+
+    mealInputs.forEach(input => {
+      const isSubscribed = subscribedMeals.includes(input.value);
+      input.disabled = !isSubscribed;
+      
+      const label = input.closest('.form-check');
+      if (label) {
+        if (!isSubscribed) {
+          label.style.opacity = '0.5';
+          label.style.cursor = 'not-allowed';
+          label.title = 'Not in customer subscription';
+          if (input.checked) input.checked = false;
+        } else {
+          label.style.opacity = '1';
+          label.style.cursor = 'pointer';
+          label.title = '';
+          if (input.checked) currentCheckedStillValid = true;
+        }
+      }
+    });
+
+    // If current selection was disabled, reset item list
+    if (!currentCheckedStillValid) {
+      this.onMealTypeChange();
+    }
   },
 
   onDateChange() {
@@ -248,20 +278,14 @@ const Extras = {
     }
     
     // Check existing entries for this customer and date
-    const existingBreakfast = DB.getExtra(customerId, date, 'breakfast');
-    const existingLunch = DB.getExtra(customerId, date, 'lunch');
-    const existingDinner = DB.getExtra(customerId, date, 'dinner');
+    const allExtras = DB.getDailyExtras().filter(e => e.customerId === customerId && e.date === date);
     
-    const entries = [];
-    if (existingBreakfast) entries.push('🌅 Breakfast');
-    if (existingLunch) entries.push('☀️ Lunch');
-    if (existingDinner) entries.push('🌙 Dinner');
-    
-    if (entries.length > 0) {
+    if (allExtras.length > 0) {
       statusDiv.style.display = 'block';
+      const entryTexts = allExtras.map(e => `${this.getMealIcon(e.mealType)} ${e.notes ? '('+e.notes+')' : ''}`);
       statusDiv.innerHTML = `
         <div style="background: var(--primary-light); padding: var(--space-3); border-radius: var(--radius-md); color: var(--primary);">
-          <strong>ℹ️ Existing entries for this date:</strong> ${entries.join(', ')}
+          <strong>ℹ️ Existing items today for this customer:</strong> ${allExtras.map(e => `${this.getMealIcon(e.mealType)} ₹${e.price}`).join(', ')}
         </div>
       `;
     } else {
