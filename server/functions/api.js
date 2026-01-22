@@ -20,11 +20,15 @@ app.use('/api/auth', require('../routes/auth'));
 
 // Health Check
 app.get('/api/health', async (req, res) => {
+  console.log('Health check requested...');
   try {
     const db = require('../config/db');
+    console.log('DB Config loaded, querying...');
     await db.query('SELECT 1');
+    console.log('DB Query successful');
     res.json({ status: 'OK', database: 'Connected' });
   } catch (error) {
+    console.error('Health Check Failure:', error);
     res.status(500).json({ status: 'Error', database: 'Disconnected', error: error.message });
   }
 });
