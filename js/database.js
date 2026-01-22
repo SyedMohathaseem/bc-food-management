@@ -5,7 +5,7 @@
 
 const DB = {
   // API endpoint - Automatically switches between local and production
-  API_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  API_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
     ? 'http://localhost:5000/api' 
     : '/api', // Use relative path for production (assuming Netlify proxy or same domain)
 

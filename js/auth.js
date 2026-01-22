@@ -113,7 +113,7 @@ const Auth = {
    */
   async login(email, password) {
     try {
-      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
         ? 'http://localhost:5000'
         : ''; // Use relative path for production
 
@@ -324,7 +324,7 @@ const Auth = {
     }
 
     try {
-      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
         ? 'http://localhost:5000'
         : ''; // Use relative path for production
 
@@ -364,7 +364,7 @@ const Auth = {
     }
 
     try {
-      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname
         ? 'http://localhost:5000'
         : ''; // Use relative path for production
 
