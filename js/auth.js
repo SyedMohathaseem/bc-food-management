@@ -59,7 +59,7 @@ const Auth = {
     };
 
     localStorage.setItem(this.KEYS.ADMIN, JSON.stringify(admin));
-    console.log('Default admin created. Email: admin@inascafe.com, Password: Admin@123');
+    console.log('Default admin created.');
   },
 
   // =====================================================
