@@ -3,14 +3,13 @@
   publish = "../"
   functions = "functions"
 
-[functions]
-  directory = "functions"
-
+# Redirect for the Express API
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "/.netlify/functions/api/api/:splat"
   status = 200
 
+# Redirect for SPA routing (Frontend)
 [[redirects]]
   from = "/*"
   to = "/index.html"
