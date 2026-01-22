@@ -11,9 +11,16 @@ const App = {
   // Initialization
   // =====================================================
 
-  init() {
-    // Load demo data if empty
-    DB.loadDemoData();
+  async init() {
+    // Check for developer mode migration trigger
+    if (window.location.search.includes('migrate=true')) {
+      const confirmed = await App.confirm('Start LocalStorage to MySQL migration?');
+      if (confirmed) {
+        App.showToast('Starting migration...', 'info');
+        await DB.migrateData();
+        App.showToast('Migration complete!', 'success');
+      }
+    }
     
     // Setup navigation
     this.setupNavigation();
@@ -133,8 +140,8 @@ const App = {
   // Dashboard
   // =====================================================
 
-  renderDashboard() {
-    const stats = DB.getStats();
+  async renderDashboard() {
+    const stats = await DB.getStats();
     const pageContent = document.getElementById('pageContent');
     
     pageContent.innerHTML = `
@@ -191,15 +198,19 @@ const App = {
           <h3 class="card-title">📌 Today's Summary</h3>
         </div>
         <div id="todaySummary">
-          ${this.renderTodaySummary()}
+          <div class="loading"><div class="spinner"></div></div>
         </div>
       </div>
     `;
+
+    // Load summary asynchronously
+    const summaryHtml = await this.renderTodaySummary();
+    document.getElementById('todaySummary').innerHTML = summaryHtml;
   },
 
-  renderTodaySummary() {
+  async renderTodaySummary() {
     const today = new Date().toISOString().split('T')[0];
-    const todayExtras = DB.getExtrasByDate(today);
+    const todayExtras = await DB.getExtrasByDate(today);
     
     if (todayExtras.length === 0) {
       return `
@@ -220,13 +231,16 @@ const App = {
       byCustomer[extra.customerId].push(extra);
     });
     
+    const menuItems = await DB.getMenuItems();
+    const findMenuItem = (id) => menuItems.find(m => m.id === id);
+
     let html = '<ul class="list">';
-    Object.keys(byCustomer).forEach(customerId => {
-      const customer = DB.getCustomer(customerId);
+    for (const customerId of Object.keys(byCustomer)) {
+      const customer = await DB.getCustomer(customerId);
       const extras = byCustomer[customerId];
       
       const mealsList = extras.map(e => {
-        const menuItem = DB.getMenuItem(e.menuItemId);
+        const menuItem = findMenuItem(e.menuItemId);
         return `${e.mealType}: ${menuItem?.name || 'Item'} (₹${e.price})`;
       }).join(', ');
       
@@ -238,7 +252,7 @@ const App = {
           </div>
         </li>
       `;
-    });
+    }
     html += '</ul>';
     
     return html;
@@ -329,41 +343,56 @@ const App = {
   // =====================================================
 
   confirm(message, onConfirm, onCancel) {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay active';
-    overlay.innerHTML = `
-      <div class="modal" style="max-width: 400px;">
-        <div class="modal-header">
-          <h3 class="modal-title">⚠️ Confirm</h3>
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay active';
+      // Prevent scrolling
+      document.body.style.overflow = 'hidden';
+      
+      overlay.innerHTML = `
+        <div class="modal" style="max-width: 400px; animation: slideUp 0.3s ease;">
+          <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+            <div style="width: 48px; height: 48px; background: var(--warning-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+               <span style="font-size: 24px;">⚠️</span>
+            </div>
+          </div>
+          <div class="modal-body" style="text-align: center; padding-top: var(--space-4);">
+            <h3 class="modal-title" style="justify-content: center; margin-bottom: var(--space-2);">Confirm Action</h3>
+            <p style="color: var(--neutral-600);">${message}</p>
+          </div>
+          <div class="modal-footer" style="border-top: none; justify-content: center; gap: var(--space-4); padding-bottom: var(--space-6);">
+            <button class="btn btn-outline" id="confirmCancel" style="min-width: 100px;">Cancel</button>
+            <button class="btn btn-primary" id="confirmOk" style="min-width: 100px;">Confirm</button>
+          </div>
         </div>
-        <div class="modal-body">
-          <p>${message}</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline" id="confirmCancel">Cancel</button>
-          <button class="btn btn-danger" id="confirmOk">Delete</button>
-        </div>
-      </div>
-    `;
+      `;
 
-    document.body.appendChild(overlay);
+      document.body.appendChild(overlay);
 
-    overlay.querySelector('#confirmCancel').onclick = () => {
-      overlay.remove();
-      if (onCancel) onCancel();
-    };
+      const cleanup = (result) => {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.remove(), 200); // Allow animation
+        document.body.style.overflow = '';
+        
+        if (result) {
+          if (onConfirm) onConfirm();
+          resolve(true);
+        } else {
+          if (onCancel) onCancel();
+          resolve(false);
+        }
+      };
 
-    overlay.querySelector('#confirmOk').onclick = () => {
-      overlay.remove();
-      if (onConfirm) onConfirm();
-    };
+      overlay.querySelector('#confirmCancel').onclick = () => cleanup(false);
+      overlay.querySelector('#confirmOk').onclick = () => cleanup(true);
 
-    overlay.onclick = (e) => {
-      if (e.target === overlay) {
-        overlay.remove();
-        if (onCancel) onCancel();
-      }
-    };
+      overlay.onclick = (e) => {
+        if (e.target === overlay) cleanup(false);
+      };
+      
+      // Focus confirm button for accessibility
+      setTimeout(() => overlay.querySelector('#confirmOk').focus(), 50);
+    });
   },
 
   // =====================================================

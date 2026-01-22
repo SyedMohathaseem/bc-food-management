@@ -96,64 +96,78 @@ const Search = {
     }, this.CONFIG.DEBOUNCE_DELAY);
   },
 
-  performSearch(query) {
+  async performSearch(query) {
     const normalizedQuery = query.toLowerCase().trim();
     const results = [];
 
     // Search Customers
     if (typeof DB !== 'undefined') {
-      const customers = DB.getCustomers();
-      customers.forEach(customer => {
-        if (this.matchesQuery(customer, ['name', 'mobile', 'address'], normalizedQuery)) {
-          results.push({
-            type: 'customer',
-            icon: '👥',
-            title: customer.name,
-            subtitle: customer.mobile,
-            page: 'customers',
-            data: customer
-          });
-        }
-      });
+      try {
+        const customers = await DB.getCustomers();
+        customers.forEach(customer => {
+          if (this.matchesQuery(customer, ['name', 'mobile', 'address'], normalizedQuery)) {
+            results.push({
+              type: 'customer',
+              icon: '👥',
+              title: customer.name,
+              subtitle: customer.mobile,
+              page: 'customers',
+              data: customer
+            });
+          }
+        });
 
-      // Search Menu Items
-      const menuItems = DB.getMenuItems();
-      menuItems.forEach(item => {
-        if (this.matchesQuery(item, ['name', 'category', 'description'], normalizedQuery)) {
-          results.push({
-            type: 'menu',
-            icon: '🍽️',
-            title: item.name,
-            subtitle: `${item.category} - ₹${item.price}`,
-            page: 'menu',
-            data: item
-          });
-        }
-      });
+        // Search Menu Items
+        const menuItems = await DB.getMenuItems();
+        menuItems.forEach(item => {
+          if (this.matchesQuery(item, ['name', 'category', 'description'], normalizedQuery)) {
+            results.push({
+              type: 'menu',
+              icon: '🍽️',
+              title: item.name,
+              subtitle: `${item.category} - ₹${item.price}`,
+              page: 'menu',
+              data: item
+            });
+          }
+        });
 
-      // Search Daily Extras (by date or notes)
-      const extras = DB.getDailyExtras();
-      extras.forEach(extra => {
-        const customer = DB.getCustomer(extra.customerId);
-        const menuItem = DB.getMenuItem(extra.menuItemId);
+        // Search Daily Extras (by date or notes)
+        const extras = await DB.getDailyExtras();
+        // Optimize: Fetch all customers and menu items once if needed, or rely on what's in extras if ID lookup is efficient/cached. 
+        // For now, simpler to just filter extras and fetch details if matched, but syncing IDs is safer.
+        // Actually, we need details for display.
         
-        const searchableExtra = {
-          ...extra,
-          customerName: customer?.name || '',
-          menuItemName: menuItem?.name || ''
-        };
+        // Let's optimize: map details first or just filter what we have.
+        // Since we already fetched customers and menuItems, we can use them.
+        const customerMap = new Map(customers.map(c => [c.id, c]));
+        const menuMap = new Map(menuItems.map(m => [m.id, m]));
 
-        if (this.matchesQuery(searchableExtra, ['date', 'notes', 'customerName', 'menuItemName', 'mealType'], normalizedQuery)) {
-          results.push({
-            type: 'extra',
-            icon: '📝',
-            title: `${customer?.name || 'Unknown'} - ${extra.mealType}`,
-            subtitle: `${extra.date} - ${menuItem?.name || 'Item'}`,
-            page: 'extras',
-            data: extra
-          });
-        }
-      });
+        extras.forEach(extra => {
+          const customer = customerMap.get(extra.customerId);
+          const menuItem = menuMap.get(extra.menuItemId);
+          
+          const searchableExtra = {
+            ...extra,
+            customerName: customer?.name || '',
+            menuItemName: menuItem?.name || ''
+          };
+
+          if (this.matchesQuery(searchableExtra, ['date', 'notes', 'customerName', 'menuItemName', 'mealType'], normalizedQuery)) {
+            results.push({
+              type: 'extra',
+              icon: '📝',
+              title: `${customer?.name || 'Unknown'} - ${extra.mealType}`,
+              subtitle: `${extra.date} - ${menuItem?.name || 'Item'}`,
+              page: 'extras',
+              data: extra
+            });
+          }
+        });
+        
+      } catch (error) {
+        console.error('Search error:', error);
+      }
     }
 
     // Limit results
@@ -373,12 +387,14 @@ const CustomerSearch = {
    * @param {string} containerId - ID of container element
    * @param {function} onSelect - Callback when customer is selected: (customer) => {}
    * @param {string} placeholder - Placeholder text
+   * @param {string} placeholder - Placeholder text
    * @param {boolean} showVoice - Whether to show the voice search button (default: true)
+   * @param {boolean} showNoResults - Whether to show "No results" message (default: true)
    * @returns {string} HTML for the search input
    */
-  create(containerId, onSelect, placeholder = 'Type customer name or mobile...', showVoice = true) {
+  create(containerId, onSelect, placeholder = 'Type customer name or mobile...', showVoice = true, showNoResults = true) {
     // Store callback
-    this.instances[containerId] = { onSelect, showVoice, filter: null };
+    this.instances[containerId] = { onSelect, showVoice, showNoResults, filter: null };
 
     const voiceBtnHtml = showVoice ? `
           <button type="button" 
@@ -438,14 +454,14 @@ const CustomerSearch = {
     }
   },
 
-  onFocus(containerId) {
+  async onFocus(containerId) {
     const input = document.getElementById(`${containerId}Input`);
-    if (input && input.value.length >= 1) {
-      this.search(containerId, input.value);
+    if (input) {
+      await this.search(containerId, input.value);
     }
   },
 
-  onInput(containerId) {
+  async onInput(containerId) {
     const input = document.getElementById(`${containerId}Input`);
     const query = input?.value || '';
     
@@ -455,15 +471,15 @@ const CustomerSearch = {
     document.getElementById(`${containerId}Input`).style.display = 'block';
     
     if (query.length >= 1) {
-      this.search(containerId, query);
+      await this.search(containerId, query);
     } else {
       this.hideResults(containerId);
     }
   },
 
-  search(containerId, query) {
+  async search(containerId, query) {
     const normalizedQuery = query.toLowerCase().trim();
-    let customers = DB.getActiveCustomers();
+    let customers = await DB.getActiveCustomers();
     
     // Apply instance filter if exists
     const instance = this.instances[containerId];
@@ -484,6 +500,12 @@ const CustomerSearch = {
     if (!container) return;
 
     if (results.length === 0) {
+      const instance = this.instances[containerId];
+      if (instance && instance.showNoResults === false) {
+        container.classList.remove('active');
+        return;
+      }
+
       container.innerHTML = `
         <div class="customer-no-results">
           No customers found for "${Search.escapeHtml(query)}"
@@ -503,8 +525,8 @@ const CustomerSearch = {
     container.classList.add('active');
   },
 
-  select(containerId, customerId) {
-    const customer = DB.getCustomer(customerId);
+  async select(containerId, customerId, customerObj = null) {
+    const customer = customerObj || await DB.getCustomer(customerId);
     if (!customer) return;
 
     // Hide search, show selected

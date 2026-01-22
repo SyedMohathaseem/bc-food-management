@@ -9,10 +9,9 @@ const Extras = {
   // Render
   // =====================================================
 
-  render() {
+  async render() {
     const pageContent = document.getElementById('pageContent');
     const today = new Date().toISOString().split('T')[0];
-    const customers = DB.getActiveCustomers();
     
     pageContent.innerHTML = `
       <h1 class="mb-6">🍽️ Daily Extra Entry</h1>
@@ -41,17 +40,17 @@ const Extras = {
             <label class="form-label required">Meal Type</label>
             <div class="form-check-group" id="mealTypeGroup">
               <label class="form-check">
-                <input type="radio" class="form-check-input" name="mealType" value="breakfast" required
+                <input type="radio" class="radio radio-primary" name="mealType" value="breakfast" required
                        onchange="Extras.onMealTypeChange()">
                 <span class="form-check-label">🌅 Breakfast</span>
               </label>
               <label class="form-check">
-                <input type="radio" class="form-check-input" name="mealType" value="lunch" required
+                <input type="radio" class="radio radio-primary" name="mealType" value="lunch" required
                        onchange="Extras.onMealTypeChange()">
                 <span class="form-check-label">☀️ Lunch</span>
               </label>
               <label class="form-check">
-                <input type="radio" class="form-check-input" name="mealType" value="dinner" required
+                <input type="radio" class="radio radio-primary" name="mealType" value="dinner" required
                        onchange="Extras.onMealTypeChange()">
                 <span class="form-check-label">🌙 Dinner</span>
               </label>
@@ -98,14 +97,17 @@ const Extras = {
                  style="max-width: 180px;" onchange="Extras.loadEntriesForDate()">
         </div>
         <div id="entriesList">
-          ${this.renderEntries(today)}
+          <div class="loading"><div class="spinner"></div></div>
         </div>
       </div>
     `;
+    
+    // Initial load
+    await this.loadEntriesForDate();
   },
 
-  renderEntries(date) {
-    const extras = DB.getExtrasByDate(date);
+  async renderEntries(date) {
+    const extras = await DB.getExtrasByDate(date);
     
     if (extras.length === 0) {
       return `
@@ -125,21 +127,24 @@ const Extras = {
         grouped[e.customerId] = { items: [], total: 0 };
       }
       grouped[e.customerId].items.push(e);
-      grouped[e.customerId].total += e.price;
-      grandTotal += e.price;
+      grouped[e.customerId].total += parseFloat(e.price);
+      grandTotal += parseFloat(e.price);
     });
     
+    const menuItems = await DB.getMenuItems();
+    const findMenuItem = (id) => menuItems.find(m => m.id === id);
+
     let html = '<ul class="list">';
     
-    Object.keys(grouped).forEach(customerId => {
-      const customer = DB.getCustomer(customerId);
+    for (const customerId of Object.keys(grouped)) {
+      const customer = await DB.getCustomer(customerId);
       const meals = grouped[customerId];
       
       const mealDetails = [];
       const mealNotes = [];
       
       meals.items.forEach(e => {
-        const item = DB.getMenuItem(e.menuItemId);
+        const item = findMenuItem(e.menuItemId);
         mealDetails.push(`${this.getMealIcon(e.mealType)} ${item?.name || 'Item'} ₹${e.price}`);
         if (e.notes && e.notes.trim()) {
           mealNotes.push(`${this.getMealIcon(e.mealType)} ${e.notes}`);
@@ -167,7 +172,7 @@ const Extras = {
           </div>
         </li>
       `;
-    });
+    }
     
     html += '</ul>';
     
@@ -232,7 +237,7 @@ const Extras = {
     this.updateStatus();
   },
 
-  onMealTypeChange() {
+  async onMealTypeChange() {
     const mealType = document.querySelector('input[name="mealType"]:checked')?.value;
     const itemSelect = document.getElementById('extraItem');
     
@@ -242,7 +247,7 @@ const Extras = {
     }
     
     // Get menu items for this meal type
-    const items = DB.getMenuItemsByCategory(mealType);
+    const items = await DB.getMenuItemsByCategory(mealType);
     
     if (items.length === 0) {
       itemSelect.innerHTML = '<option value="">No items available</option>';
@@ -254,7 +259,7 @@ const Extras = {
       ${items.map(m => `<option value="${m.id}" data-price="${m.price}">${m.name} - ₹${m.price}</option>`).join('')}
     `;
     
-    this.updateStatus();
+    await this.updateStatus();
   },
 
   onItemChange() {
@@ -267,7 +272,7 @@ const Extras = {
     }
   },
 
-  updateStatus() {
+  async updateStatus() {
     const customerId = CustomerSearch.getValue('extraCustomerSearch');
     const date = document.getElementById('extraDate').value;
     const statusDiv = document.getElementById('extraStatus');
@@ -278,14 +283,14 @@ const Extras = {
     }
     
     // Check existing entries for this customer and date
-    const allExtras = DB.getDailyExtras().filter(e => e.customerId === customerId && e.date === date);
+    const allExtras = await DB.getExtrasByDate(date);
+    const customerExtras = allExtras.filter(e => e.customerId === customerId);
     
-    if (allExtras.length > 0) {
+    if (customerExtras.length > 0) {
       statusDiv.style.display = 'block';
-      const entryTexts = allExtras.map(e => `${this.getMealIcon(e.mealType)} ${e.notes ? '('+e.notes+')' : ''}`);
       statusDiv.innerHTML = `
-        <div style="background: var(--primary-light); padding: var(--space-3); border-radius: var(--radius-md); color: var(--primary);">
-          <strong>ℹ️ Existing items today for this customer:</strong> ${allExtras.map(e => `${this.getMealIcon(e.mealType)} ₹${e.price}`).join(', ')}
+        <div style="background: var(--primary-light); padding: var(--space-3); border-radius: var(--radius-md); color: var(--primary); font-size: var(--font-size-sm);">
+          <strong>ℹ️ Existing items today for this customer:</strong> ${customerExtras.map(e => `${this.getMealIcon(e.mealType)} ₹${parseFloat(e.price)}`).join(', ')}
         </div>
       `;
     } else {
@@ -293,16 +298,20 @@ const Extras = {
     }
   },
 
-  loadEntriesForDate() {
+  async loadEntriesForDate() {
     const date = document.getElementById('viewDate').value;
-    document.getElementById('entriesList').innerHTML = this.renderEntries(date);
+    const listDiv = document.getElementById('entriesList');
+    if (listDiv) {
+      listDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+      listDiv.innerHTML = await this.renderEntries(date);
+    }
   },
 
   // =====================================================
   // Save Entry
   // =====================================================
 
-  save(event) {
+  async save(event) {
     event.preventDefault();
     
     const customerId = CustomerSearch.getValue('extraCustomerSearch');
@@ -325,7 +334,7 @@ const Extras = {
     
     try {
       // Save the extra entry
-      DB.addDailyExtra({
+      await DB.addDailyExtra({
         customerId,
         date,
         mealType,
@@ -343,8 +352,8 @@ const Extras = {
       document.getElementById('extraNotes').value = '';
       
       // Refresh entries list
-      this.loadEntriesForDate();
-      this.updateStatus();
+      await this.loadEntriesForDate();
+      await this.updateStatus();
       
     } catch (error) {
       console.error('Save error:', error);
@@ -365,14 +374,14 @@ const Extras = {
   // Edit & Delete
   // =====================================================
 
-  editCustomerEntries(customerId, date) {
+  async editCustomerEntries(customerId, date) {
     // Pre-select the customer using CustomerSearch
-    const customer = DB.getCustomer(customerId);
+    const customer = await DB.getCustomer(customerId);
     if (customer) {
-      CustomerSearch.select('extraCustomerSearch', customerId);
+      CustomerSearch.select('extraCustomerSearch', customerId, customer);
     }
     document.getElementById('extraDate').value = date;
-    this.updateStatus();
+    await this.updateStatus();
     
     // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -380,14 +389,14 @@ const Extras = {
     App.showToast('Select meal type to add or update entry', 'info');
   },
 
-  deleteEntry(customerId, date, mealType) {
+  async deleteEntry(customerId, date, mealType) {
     App.confirm(
       `Delete ${this.getMealLabel(mealType)} entry for this date?`,
-      () => {
-        DB.deleteExtraByDetails(customerId, date, mealType);
+      async () => {
+        await DB.deleteExtraByDetails(customerId, date, mealType);
         App.showToast('Entry deleted', 'success');
-        this.loadEntriesForDate();
-        this.updateStatus();
+        await this.loadEntriesForDate();
+        await this.updateStatus();
       }
     );
   }

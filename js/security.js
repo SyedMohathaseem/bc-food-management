@@ -368,7 +368,7 @@ const Security = {
     }
     
     // Show confirmation
-    if (!confirm('Are you sure you want to change your email? You will be logged out and need to login with the new email.')) {
+    if (!await App.confirm('Are you sure you want to change your email? You will be logged out and need to login with the new email.')) {
       return;
     }
     
@@ -421,7 +421,7 @@ const Security = {
     }
     
     // Show confirmation
-    if (!confirm('Are you sure you want to change your password? You will be logged out and need to login with the new password.')) {
+    if (!await App.confirm('Are you sure you want to change your password? You will be logged out and need to login with the new password.')) {
       return;
     }
     

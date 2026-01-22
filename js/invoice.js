@@ -105,7 +105,7 @@ const Invoice = {
     return years.join('');
   },
 
-  togglePeriod(type) {
+  async togglePeriod(type) {
     document.getElementById('monthlySelectors').style.display = type === 'monthly' ? 'grid' : 'none';
     document.getElementById('dailySelector').style.display = type === 'daily' ? 'block' : 'none';
     
@@ -119,7 +119,7 @@ const Invoice = {
     // Check if currently selected customer matches new filter
     const selectedId = CustomerSearch.getValue('invoiceCustomerSearch');
     if (selectedId) {
-      const customer = DB.getCustomer(selectedId);
+      const customer = await DB.getCustomer(selectedId);
       if (customer && !filterFn(customer)) {
         CustomerSearch.clear('invoiceCustomerSearch');
       }
@@ -135,7 +135,7 @@ const Invoice = {
   // Generate Invoice
   // =====================================================
 
-  generate(event) {
+  async generate(event) {
     event.preventDefault();
     
     const customerId = CustomerSearch.getValue('invoiceCustomerSearch');
@@ -147,28 +147,33 @@ const Invoice = {
     }
 
     let data;
-    if (periodType === 'monthly') {
-      const month = parseInt(document.getElementById('invoiceMonth').value);
-      const year = parseInt(document.getElementById('invoiceYear').value);
-      data = DB.generateInvoiceData(customerId, year, month);
-    } else {
-      const date = document.getElementById('invoiceDate').value;
-      if (!date) {
-        App.showToast('Please select a date', 'error');
+    try {
+      if (periodType === 'monthly') {
+        const month = parseInt(document.getElementById('invoiceMonth').value);
+        const year = parseInt(document.getElementById('invoiceYear').value);
+        data = await DB.generateInvoiceData(customerId, year, month);
+      } else {
+        const date = document.getElementById('invoiceDate').value;
+        if (!date) {
+          App.showToast('Please select a date', 'error');
+          return;
+        }
+        data = await DB.generateDailyInvoiceData(customerId, date);
+      }
+      
+      if (!data) {
+        App.showToast('Unable to generate invoice', 'error');
         return;
       }
-      data = DB.generateDailyInvoiceData(customerId, date);
+      
+      this.currentData = data;
+      this.renderPreview(data);
+      
+      App.showToast('Invoice generated!', 'success');
+    } catch (error) {
+      console.error('Invoice generation error:', error);
+      App.showToast('Error generating invoice', 'error');
     }
-    
-    if (!data) {
-      App.showToast('Unable to generate invoice', 'error');
-      return;
-    }
-    
-    this.currentData = data;
-    this.renderPreview(data);
-    
-    App.showToast('Invoice generated!', 'success');
   },
 
   renderPreview(data) {

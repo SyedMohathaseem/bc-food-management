@@ -18,9 +18,9 @@ const Menu = {
   // Render
   // =====================================================
 
-  render() {
+  async render() {
     const pageContent = document.getElementById('pageContent');
-    const menuItems = DB.getMenuItems();
+    const menuItems = await DB.getMenuItems();
     
     pageContent.innerHTML = `
       <div class="card-header" style="background: none; padding: 0; border: none; margin-bottom: var(--space-6);">
@@ -31,7 +31,9 @@ const Menu = {
       </div>
       
       <!-- Menu Items by Category -->
-      ${this.renderByCategory(menuItems)}
+      <div id="categoryContainer">
+        ${await this.renderByCategory(menuItems)}
+      </div>
       
       <!-- Add/Edit Modal -->
       <div class="modal-overlay" id="menuModal">
@@ -73,8 +75,8 @@ const Menu = {
               </div>
               
               <div class="form-group">
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" id="menuAvailable" checked>
+                <label class="form-label">
+                  <input type="checkbox" id="menuAvailable" checked>
                   <span class="form-check-label">Available for ordering</span>
                 </label>
               </div>
@@ -90,7 +92,7 @@ const Menu = {
     `;
   },
 
-  renderByCategory(menuItems) {
+  async renderByCategory(menuItems) {
     if (menuItems.length === 0) {
       return `
         <div class="card">
@@ -115,9 +117,9 @@ const Menu = {
 
     let html = '';
     
-    ['breakfast', 'lunch', 'dinner'].forEach(category => {
+    for (const category of ['breakfast', 'lunch', 'dinner']) {
       const items = grouped[category];
-      if (items.length === 0) return;
+      if (items.length === 0) continue;
       
       html += `
         <div class="card">
@@ -129,8 +131,9 @@ const Menu = {
       `;
       
       items.forEach(item => {
-        const statusClass = item.available ? 'success' : 'warning';
-        const statusLabel = item.available ? 'Available' : 'Unavailable';
+        const isAvailable = item.isAvailable === 1 || item.available === true || item.isAvailable === true;
+        const statusClass = isAvailable ? 'success' : 'warning';
+        const statusLabel = isAvailable ? 'Available' : 'Unavailable';
         
         html += `
           <li class="list-item">
@@ -154,7 +157,7 @@ const Menu = {
       });
       
       html += '</ul></div>';
-    });
+    }
 
     return html;
   },
@@ -163,7 +166,7 @@ const Menu = {
   // Form Operations
   // =====================================================
 
-  openForm(itemId = null) {
+  async openForm(itemId = null) {
     this.editId = itemId;
     const modal = document.getElementById('menuModal');
     const title = document.getElementById('menuModalTitle');
@@ -174,7 +177,7 @@ const Menu = {
     
     if (itemId) {
       // Edit mode
-      const item = DB.getMenuItem(itemId);
+      const item = await DB.getMenuItem(itemId);
       if (!item) {
         App.showToast('Item not found', 'error');
         return;
@@ -185,7 +188,7 @@ const Menu = {
       document.getElementById('menuCategory').value = item.category;
       document.getElementById('menuPrice').value = item.price;
       document.getElementById('menuDesc').value = item.description || '';
-      document.getElementById('menuAvailable').checked = item.available;
+      document.getElementById('menuAvailable').checked = (item.isAvailable === 1 || item.isAvailable === true || item.available === true);
     } else {
       // Add mode
       title.textContent = 'Add Menu Item';
@@ -199,7 +202,7 @@ const Menu = {
     App.closeModal('menuModal');
   },
 
-  save(event) {
+  async save(event) {
     event.preventDefault();
     
     const data = {
@@ -207,7 +210,7 @@ const Menu = {
       category: document.getElementById('menuCategory').value,
       price: parseFloat(document.getElementById('menuPrice').value),
       description: document.getElementById('menuDesc').value.trim(),
-      available: document.getElementById('menuAvailable').checked
+      isAvailable: document.getElementById('menuAvailable').checked ? 1 : 0
     };
     
     // Validation
@@ -224,16 +227,16 @@ const Menu = {
     try {
       if (this.editId) {
         // Update existing
-        DB.updateMenuItem(this.editId, data);
+        await DB.updateMenuItem(this.editId, data);
         App.showToast('Menu item updated!', 'success');
       } else {
         // Add new
-        DB.addMenuItem(data);
+        await DB.addMenuItem(data);
         App.showToast('Menu item added!', 'success');
       }
       
       this.closeForm();
-      this.render();
+      await this.render();
     } catch (error) {
       console.error('Save error:', error);
       App.showToast('Error saving item', 'error');
@@ -244,32 +247,34 @@ const Menu = {
   // CRUD Operations
   // =====================================================
 
-  edit(id) {
-    this.openForm(id);
+  async edit(id) {
+    await this.openForm(id);
   },
 
-  delete(id) {
-    const item = DB.getMenuItem(id);
+  async delete(id) {
+    const item = await DB.getMenuItem(id);
     if (!item) return;
     
     App.confirm(
       `Are you sure you want to delete "${item.name}"?`,
-      () => {
-        DB.deleteMenuItem(id);
+      async () => {
+        await DB.deleteMenuItem(id);
         App.showToast('Item deleted', 'success');
-        this.render();
+        await this.render();
       }
     );
   },
 
-  toggleAvailability(id) {
-    const item = DB.getMenuItem(id);
+  async toggleAvailability(id) {
+    const item = await DB.getMenuItem(id);
     if (!item) return;
     
-    DB.updateMenuItem(id, { available: !item.available });
-    App.showToast(`Item ${item.available ? 'marked unavailable' : 'available now'}`, 'success');
-    this.render();
+    const isAvailable = item.isAvailable === 1 || item.available === true || item.isAvailable === true;
+    await DB.updateMenuItem(id, { isAvailable: isAvailable ? 0 : 1 });
+    App.showToast(`Item ${isAvailable ? 'marked unavailable' : 'available now'}`, 'success');
+    await this.render();
   }
+
 };
 
 // Make available globally

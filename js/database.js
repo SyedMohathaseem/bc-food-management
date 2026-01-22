@@ -4,352 +4,229 @@
  */
 
 const DB = {
-  // Collection keys
-  KEYS: {
-    CUSTOMERS: 'bc_customers',
-    MENU_ITEMS: 'bc_menu_items',
-    DAILY_EXTRAS: 'bc_daily_extras'
-  },
+  // API endpoint
+  API_URL: 'http://localhost:5000/api',
 
   // =====================================================
-  // Generic CRUD Operations
+  // API Helpers
   // =====================================================
 
-  /**
-   * Get all items from a collection
-   * @param {string} key - Collection key
-   * @returns {Array} Array of items
-   */
-  getAll(key) {
+  async fetchAPI(endpoint, options = {}) {
     try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : [];
+      const response = await fetch(`${this.API_URL}${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'API request failed');
+      }
+      
+      return await response.json();
     } catch (error) {
-      console.error(`Error reading ${key}:`, error);
-      return [];
+      console.error(`API Error (${endpoint}):`, error);
+      throw error;
     }
-  },
-
-  /**
-   * Save all items to a collection
-   * @param {string} key - Collection key
-   * @param {Array} items - Array of items to save
-   */
-  saveAll(key, items) {
-    try {
-      localStorage.setItem(key, JSON.stringify(items));
-      return true;
-    } catch (error) {
-      console.error(`Error saving ${key}:`, error);
-      return false;
-    }
-  },
-
-  /**
-   * Get a single item by ID
-   * @param {string} key - Collection key
-   * @param {string} id - Item ID
-   * @returns {Object|null} Item or null if not found
-   */
-  getById(key, id) {
-    const items = this.getAll(key);
-    return items.find(item => item.id === id) || null;
-  },
-
-  /**
-   * Add a new item to a collection
-   * @param {string} key - Collection key
-   * @param {Object} item - Item to add (without ID)
-   * @returns {Object} Added item with generated ID
-   */
-  add(key, item) {
-    const items = this.getAll(key);
-    const prefix = key.split('_')[1].substring(0, 4); // e.g., 'cust' from 'bc_customers'
-    const newItem = {
-      ...item,
-      id: `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      createdAt: new Date().toISOString()
-    };
-    items.push(newItem);
-    this.saveAll(key, items);
-    return newItem;
-  },
-
-  /**
-   * Update an existing item
-   * @param {string} key - Collection key
-   * @param {string} id - Item ID
-   * @param {Object} updates - Fields to update
-   * @returns {Object|null} Updated item or null if not found
-   */
-  update(key, id, updates) {
-    const items = this.getAll(key);
-    const index = items.findIndex(item => item.id === id);
-    
-    if (index === -1) return null;
-    
-    items[index] = {
-      ...items[index],
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
-    
-    this.saveAll(key, items);
-    return items[index];
-  },
-
-  /**
-   * Delete an item by ID
-   * @param {string} key - Collection key
-   * @param {string} id - Item ID
-   * @returns {boolean} True if deleted, false if not found
-   */
-  delete(key, id) {
-    const items = this.getAll(key);
-    const filtered = items.filter(item => item.id !== id);
-    
-    if (filtered.length === items.length) return false;
-    
-    this.saveAll(key, filtered);
-    return true;
   },
 
   // =====================================================
   // Customer Operations
   // =====================================================
 
-  getCustomers() {
-    return this.getAll(this.KEYS.CUSTOMERS);
+  async getCustomers() {
+    return this.fetchAPI('/customers');
   },
 
-  getActiveCustomers() {
-    return this.getCustomers().filter(c => c.status === 'active');
+  async getActiveCustomers() {
+    const customers = await this.getCustomers();
+    return customers.filter(c => c.status === 'active');
   },
 
-  getCustomer(id) {
-    return this.getById(this.KEYS.CUSTOMERS, id);
+  async getCustomer(id) {
+    return this.fetchAPI(`/customers/${id}`);
   },
 
-  addCustomer(customer) {
-    return this.add(this.KEYS.CUSTOMERS, {
-      name: customer.name,
-      mobile: customer.mobile,
-      address: customer.address || '',
-      subscriptionType: customer.subscriptionType || 'daily',
-      dailyAmount: parseFloat(customer.dailyAmount) || 300,
-      mealTimes: customer.mealTimes || ['breakfast', 'lunch', 'dinner'],
-      advanceAmount: parseFloat(customer.advanceAmount) || 0,
-      referral: customer.referral || '',
-      startDate: customer.startDate || new Date().toISOString().split('T')[0],
-      status: customer.status || 'active'
+  async addCustomer(customer) {
+    return this.fetchAPI('/customers', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: customer.name,
+        mobile: customer.mobile,
+        address: customer.address || '',
+        subscriptionType: customer.subscriptionType || 'daily',
+        dailyAmount: parseFloat(customer.dailyAmount) || 300,
+        mealTimes: customer.mealTimes || ['breakfast', 'lunch', 'dinner'],
+        advanceAmount: parseFloat(customer.advanceAmount) || 0,
+        referral: customer.referral || '',
+        startDate: customer.startDate || new Date().toISOString().split('T')[0],
+        status: customer.status || 'active'
+      })
     });
   },
 
-  updateCustomer(id, updates) {
-    if (updates.dailyAmount) {
-      updates.dailyAmount = parseFloat(updates.dailyAmount);
-    }
-    if (updates.advanceAmount !== undefined) {
-      updates.advanceAmount = parseFloat(updates.advanceAmount) || 0;
-    }
-    return this.update(this.KEYS.CUSTOMERS, id, updates);
+  async updateCustomer(id, updates) {
+    return this.fetchAPI(`/customers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
   },
 
-  deleteCustomer(id) {
-    return this.delete(this.KEYS.CUSTOMERS, id);
+  async deleteCustomer(id) {
+    return this.fetchAPI(`/customers/${id}`, {
+      method: 'DELETE'
+    });
   },
 
   // =====================================================
   // Menu Item Operations
   // =====================================================
 
-  getMenuItems() {
-    return this.getAll(this.KEYS.MENU_ITEMS);
+  async getMenuItems() {
+    return this.fetchAPI('/menu');
   },
 
-  getAvailableMenuItems() {
-    return this.getMenuItems().filter(m => m.available);
+  async getAvailableMenuItems() {
+    const items = await this.getMenuItems();
+    return items.filter(m => m.available);
   },
 
-  getMenuItemsByCategory(category) {
-    return this.getAvailableMenuItems().filter(m => m.category === category);
+  async getMenuItemsByCategory(category) {
+    const items = await this.getAvailableMenuItems();
+    return items.filter(m => m.category === category);
   },
 
-  getMenuItem(id) {
-    return this.getById(this.KEYS.MENU_ITEMS, id);
+  async getMenuItem(id) {
+    const items = await this.getMenuItems();
+    return items.find(m => m.id === id) || null;
   },
 
-  addMenuItem(menuItem) {
-    return this.add(this.KEYS.MENU_ITEMS, {
-      name: menuItem.name,
-      category: menuItem.category,
-      price: parseFloat(menuItem.price) || 0,
-      description: menuItem.description || '',
-      available: menuItem.available !== false
+  async addMenuItem(menuItem) {
+    return this.fetchAPI('/menu', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: menuItem.name,
+        category: menuItem.category,
+        price: parseFloat(menuItem.price) || 0,
+        description: menuItem.description || '',
+        available: menuItem.available !== false
+      })
     });
   },
 
-  updateMenuItem(id, updates) {
-    if (updates.price) {
-      updates.price = parseFloat(updates.price);
-    }
-    return this.update(this.KEYS.MENU_ITEMS, id, updates);
+  async updateMenuItem(id, updates) {
+    return this.fetchAPI(`/menu/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
   },
 
-  deleteMenuItem(id) {
-    return this.delete(this.KEYS.MENU_ITEMS, id);
+  async deleteMenuItem(id) {
+    return this.fetchAPI(`/menu/${id}`, {
+      method: 'DELETE'
+    });
   },
 
   // =====================================================
   // Daily Extras Operations
   // =====================================================
 
-  getDailyExtras() {
-    return this.getAll(this.KEYS.DAILY_EXTRAS);
+  async getDailyExtras() {
+    return this.fetchAPI('/extras');
   },
 
-  getExtrasByCustomer(customerId) {
-    return this.getDailyExtras().filter(e => e.customerId === customerId);
+  async getExtrasByCustomer(customerId) {
+    const extras = await this.getDailyExtras();
+    return extras.filter(e => e.customerId === customerId);
   },
 
-  getExtrasByDate(date) {
-    return this.getDailyExtras().filter(e => e.date === date);
+  async getExtrasByDate(date) {
+    return this.fetchAPI(`/extras/date/${date}`);
   },
 
-  getExtrasByCustomerAndMonth(customerId, year, month) {
-    return this.getDailyExtras().filter(e => {
-      if (e.customerId !== customerId) return false;
+  async getExtrasByCustomerAndMonth(customerId, year, month) {
+    const extras = await this.getExtrasByCustomer(customerId);
+    return extras.filter(e => {
       const d = new Date(e.date);
       return d.getFullYear() === year && d.getMonth() === month;
     });
   },
 
-  /**
-   * Get extras for a specific customer, date, and meal type
-   * @param {string} customerId 
-   * @param {string} date - YYYY-MM-DD format
-   * @param {string} mealType - breakfast | lunch | dinner
-   * @returns {Object|null}
-   */
-  getExtras(customerId, date, mealType) {
-    return this.getDailyExtras().filter(
-      e => e.customerId === customerId && e.date === date && e.mealType === mealType
-    );
+  async getExtras(customerId, date, mealType) {
+    const extras = await this.getExtrasByDate(date);
+    return extras.filter(e => e.customerId === customerId && e.mealType === mealType);
   },
 
-  /**
-   * Add or update a daily extra
-   * This implements the critical business rule:
-   * - When adding extra for one meal, other meals for that date are marked as attended (no extra)
-   * @param {Object} extra - Extra entry data
-   * @returns {Object} Added/updated extra
-   */
-  addDailyExtra(extra) {
-    const extras = this.getDailyExtras();
-    const { customerId, date, mealType, menuItemId, price, notes } = extra;
-    
-    // Create new entry (Removed overwriting logic to allow multiple items)
-    const newExtra = {
-      id: `extr_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      customerId,
-      date,
-      mealType,
-      menuItemId,
-      price: parseFloat(price),
-      notes: notes || '',
-      createdAt: new Date().toISOString()
-    };
-    
-    extras.push(newExtra);
-    this.saveAll(this.KEYS.DAILY_EXTRAS, extras);
-    return newExtra;
-  },
-
-  /**
-   * Delete a daily extra
-   * @param {string} id - Extra ID
-   * @returns {boolean}
-   */
-  deleteDailyExtra(id) {
-    return this.delete(this.KEYS.DAILY_EXTRAS, id);
-  },
-
-  /**
-   * Delete extras by customer, date, and optionally meal type
-   */
-  deleteExtraByDetails(customerId, date, mealType = null) {
-    const extras = this.getDailyExtras();
-    const filtered = extras.filter(e => {
-      if (e.customerId !== customerId) return true;
-      if (e.date !== date) return true;
-      if (mealType && e.mealType !== mealType) return true;
-      return false;
+  async addDailyExtra(extra) {
+    return this.fetchAPI('/extras', {
+      method: 'POST',
+      body: JSON.stringify(extra)
     });
-    this.saveAll(this.KEYS.DAILY_EXTRAS, filtered);
+  },
+
+  async deleteDailyExtra(id) {
+    return this.fetchAPI(`/extras/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  async deleteExtraByDetails(customerId, date, mealType = null) {
+    return this.fetchAPI('/extras/delete-by-details', {
+      method: 'POST',
+      body: JSON.stringify({ customerId, date, mealType })
+    });
   },
 
   // =====================================================
   // Invoice Generation Helpers
   // =====================================================
 
-  /**
-   * Get invoice data for a customer for a specific month
-   * @param {string} customerId 
-   * @param {number} year 
-   * @param {number} month - 0-indexed
-   * @returns {Object} Invoice data
-   */
-  generateInvoiceData(customerId, year, month) {
-    const customer = this.getCustomer(customerId);
+  async generateInvoiceData(customerId, year, month) {
+    const customer = await this.getCustomer(customerId);
     if (!customer) return null;
 
-    // Get all extras for this customer and month
-    const extras = this.getExtrasByCustomerAndMonth(customerId, year, month);
-    
-    // Create a map for quick lookup
-    const extrasMap = {};
-    extras.forEach(e => {
-      const key = `${e.date}_${e.mealType}`;
-      extrasMap[key] = e;
-    });
-
-    // Get days in month
+    const extras = await this.getExtrasByCustomerAndMonth(customerId, year, month);
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
-    // Build date-wise data
     const dateWiseData = [];
     let breakfastTotal = 0;
     let lunchTotal = 0;
     let dinnerTotal = 0;
     
+    const menuItems = await this.getMenuItems();
+    const findMenuItem = (id) => menuItems.find(m => m.id === id);
+
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       
-      const dayBreakfasts = extras.filter(e => e.date === dateStr && e.mealType === 'breakfast');
-      const dayLunches = extras.filter(e => e.date === dateStr && e.mealType === 'lunch');
-      const dayDinners = extras.filter(e => e.date === dateStr && e.mealType === 'dinner');
+      // Helper to match dates ignoring time
+      const matchDate = (extraDate) => {
+        const d = new Date(extraDate);
+        const dStr = d.toISOString().split('T')[0];
+        return dStr === dateStr;
+      };
+
+      const dayBreakfasts = extras.filter(e => matchDate(e.date) && e.mealType === 'breakfast');
+      const dayLunches = extras.filter(e => matchDate(e.date) && e.mealType === 'lunch');
+      const dayDinners = extras.filter(e => matchDate(e.date) && e.mealType === 'dinner');
       
-      dayBreakfasts.forEach(e => breakfastTotal += e.price);
-      dayLunches.forEach(e => lunchTotal += e.price);
-      dayDinners.forEach(e => dinnerTotal += e.price);
+      dayBreakfasts.forEach(e => breakfastTotal += parseFloat(e.price));
+      dayLunches.forEach(e => lunchTotal += parseFloat(e.price));
+      dayDinners.forEach(e => dinnerTotal += parseFloat(e.price));
       
       dateWiseData.push({
         date: dateStr,
         day,
-        breakfast: dayBreakfasts.length > 0 ? dayBreakfasts.map(e => this.formatExtraDisplay(e)).join('<br>') : '-',
-        lunch: dayLunches.length > 0 ? dayLunches.map(e => this.formatExtraDisplay(e)).join('<br>') : '-',
-        dinner: dayDinners.length > 0 ? dayDinners.map(e => this.formatExtraDisplay(e)).join('<br>') : '-'
+        breakfast: dayBreakfasts.length > 0 ? dayBreakfasts.map(e => this.formatExtraDisplay(e, findMenuItem(e.menuItemId))).join('<br>') : '-',
+        lunch: dayLunches.length > 0 ? dayLunches.map(e => this.formatExtraDisplay(e, findMenuItem(e.menuItemId))).join('<br>') : '-',
+        dinner: dayDinners.length > 0 ? dayDinners.map(e => this.formatExtraDisplay(e, findMenuItem(e.menuItemId))).join('<br>') : '-'
       });
     }
 
-    // Calculate subscription total based on type
-    let subscriptionTotal = 0;
-    if (customer.subscriptionType === 'monthly') {
-      subscriptionTotal = customer.dailyAmount; // Treating dailyAmount field as Monthly Amount
-    } else {
-      subscriptionTotal = customer.dailyAmount * daysInMonth; // Daily calculation
-    }
-
+    let subscriptionTotal = customer.subscriptionType === 'monthly' ? parseFloat(customer.dailyAmount) : parseFloat(customer.dailyAmount) * daysInMonth;
     const extrasTotal = breakfastTotal + lunchTotal + dinnerTotal;
     const grandTotal = subscriptionTotal + extrasTotal;
 
@@ -363,7 +240,7 @@ const DB = {
       summary: {
         daysInMonth,
         dailyAmount: customer.dailyAmount,
-        subscriptionTotal: subscriptionTotal,
+        subscriptionTotal,
         breakfastTotal,
         lunchTotal,
         dinnerTotal,
@@ -373,29 +250,24 @@ const DB = {
     };
   },
 
-  /**
-   * Get invoice data for a single day
-   * @param {string} customerId 
-   * @param {string} date - YYYY-MM-DD
-   * @returns {Object}
-   */
-  generateDailyInvoiceData(customerId, date) {
-    const customer = this.getCustomer(customerId);
+  async generateDailyInvoiceData(customerId, date) {
+    const customer = await this.getCustomer(customerId);
     if (!customer) return null;
 
-    const extras = DB.getDailyExtras().filter(e => e.customerId === customerId && e.date === date);
+    const extras = await this.getExtrasByDate(date);
+    const customerExtras = extras.filter(e => e.customerId === customerId);
     
-    let breakfastTotal = 0;
-    let lunchTotal = 0;
-    let dinnerTotal = 0;
-    
-    extras.forEach(e => {
-      if (e.mealType === 'breakfast') breakfastTotal += e.price;
-      if (e.mealType === 'lunch') lunchTotal += e.price;
-      if (e.mealType === 'dinner') dinnerTotal += e.price;
+    const menuItems = await this.getMenuItems();
+    const findMenuItem = (id) => menuItems.find(m => m.id === id);
+
+    let breakfastTotal = 0, lunchTotal = 0, dinnerTotal = 0;
+    customerExtras.forEach(e => {
+      if (e.mealType === 'breakfast') breakfastTotal += parseFloat(e.price);
+      if (e.mealType === 'lunch') lunchTotal += parseFloat(e.price);
+      if (e.mealType === 'dinner') dinnerTotal += parseFloat(e.price);
     });
 
-    const subscriptionTotal = customer.subscriptionType === 'monthly' ? 0 : customer.dailyAmount; 
+    const subscriptionTotal = customer.subscriptionType === 'monthly' ? 0 : parseFloat(customer.dailyAmount);
     const extrasTotal = breakfastTotal + lunchTotal + dinnerTotal;
     const grandTotal = subscriptionTotal + extrasTotal;
 
@@ -411,14 +283,14 @@ const DB = {
       dateWiseData: [{
         date,
         day: dateObj.getDate(),
-        breakfast: extras.filter(e => e.mealType === 'breakfast').map(e => this.formatExtraDisplay(e)).join('<br>') || '-',
-        lunch: extras.filter(e => e.mealType === 'lunch').map(e => this.formatExtraDisplay(e)).join('<br>') || '-',
-        dinner: extras.filter(e => e.mealType === 'dinner').map(e => this.formatExtraDisplay(e)).join('<br>') || '-'
+        breakfast: customerExtras.filter(e => e.mealType === 'breakfast').map(e => this.formatExtraDisplay(e, findMenuItem(e.menuItemId))).join('<br>') || '-',
+        lunch: customerExtras.filter(e => e.mealType === 'lunch').map(e => this.formatExtraDisplay(e, findMenuItem(e.menuItemId))).join('<br>') || '-',
+        dinner: customerExtras.filter(e => e.mealType === 'dinner').map(e => this.formatExtraDisplay(e, findMenuItem(e.menuItemId))).join('<br>') || '-'
       }],
       summary: {
         daysInMonth: 1,
         dailyAmount: customer.dailyAmount,
-        subscriptionTotal: subscriptionTotal,
+        subscriptionTotal,
         breakfastTotal,
         lunchTotal,
         dinnerTotal,
@@ -428,13 +300,7 @@ const DB = {
     };
   },
 
-  /**
-   * Format extra entry for display in invoice
-   * @param {Object} extra 
-   * @returns {string} Formatted string like "Veg Thali – ₹80"
-   */
-  formatExtraDisplay(extra) {
-    const menuItem = this.getMenuItem(extra.menuItemId);
+  formatExtraDisplay(extra, menuItem) {
     const name = menuItem ? menuItem.name : 'Item';
     let display = `${name} – ₹${extra.price}`;
     if (extra.notes && extra.notes.trim()) {
@@ -447,12 +313,12 @@ const DB = {
   // Statistics
   // =====================================================
 
-  getStats() {
-    const customers = this.getCustomers();
-    const menuItems = this.getMenuItems();
-    const extras = this.getDailyExtras();
+  async getStats() {
+    const customers = await this.getCustomers();
+    const menuItems = await this.getMenuItems();
+    const extras = await this.getDailyExtras();
     const today = new Date().toISOString().split('T')[0];
-    const todayExtras = extras.filter(e => e.date === today);
+    const todayExtras = await this.getExtrasByDate(today);
 
     return {
       totalCustomers: customers.length,
@@ -465,52 +331,41 @@ const DB = {
   },
 
   // =====================================================
-  // Demo Data
+  // Data Migration
   // =====================================================
 
-  /**
-   * Load demo data for testing
-   */
-  loadDemoData() {
-    // Only load if collections are empty
-    if (this.getCustomers().length === 0) {
-      this.addCustomer({
-        name: 'Ramesh Kumar',
-        mobile: '9876543210',
-        address: '123 Main Street, Sector 15',
-        subscriptionType: 'daily',
-        dailyAmount: 300,
-        startDate: '2026-01-01',
-        status: 'active'
-      });
+  async migrateData() {
+    const KEYS = {
+      CUSTOMERS: 'bc_customers',
+      MENU_ITEMS: 'bc_menu_items',
+      DAILY_EXTRAS: 'bc_daily_extras'
+    };
 
-      this.addCustomer({
-        name: 'Sunita Sharma',
-        mobile: '9876543211',
-        address: '456 Park Road, Block B',
-        subscriptionType: 'monthly',
-        dailyAmount: 280,
-        startDate: '2026-01-01',
-        status: 'active'
-      });
+    const getLocal = (key) => JSON.parse(localStorage.getItem(key)) || [];
+
+    const customers = getLocal(KEYS.CUSTOMERS);
+    const menu = getLocal(KEYS.MENU_ITEMS);
+    const extras = getLocal(KEYS.DAILY_EXTRAS);
+
+    console.log('Starting migration...');
+
+    // Migrate Customers
+    for (const c of customers) {
+      await this.addCustomer(c).catch(err => console.error('Error migrating customer', c.name, err));
     }
 
-    if (this.getMenuItems().length === 0) {
-      // Breakfast items
-      this.addMenuItem({ name: 'Poha', category: 'breakfast', price: 40, description: 'Flattened rice with vegetables' });
-      this.addMenuItem({ name: 'Upma', category: 'breakfast', price: 40, description: 'Semolina preparation' });
-      this.addMenuItem({ name: 'Paratha (2 pcs)', category: 'breakfast', price: 50, description: 'Stuffed flatbread with curd' });
-      
-      // Lunch items
-      this.addMenuItem({ name: 'Veg Thali', category: 'lunch', price: 80, description: 'Rice, Dal, Sabzi, Roti, Salad' });
-      this.addMenuItem({ name: 'Special Thali', category: 'lunch', price: 120, description: 'Premium thali with paneer' });
-      this.addMenuItem({ name: 'Rice & Dal', category: 'lunch', price: 60, description: 'Simple rice and dal combo' });
-      
-      // Dinner items
-      this.addMenuItem({ name: 'Roti Sabzi', category: 'dinner', price: 70, description: '4 Rotis with seasonal vegetable' });
-      this.addMenuItem({ name: 'Light Meal', category: 'dinner', price: 50, description: 'Khichdi or simple preparation' });
-      this.addMenuItem({ name: 'Full Dinner', category: 'dinner', price: 90, description: 'Complete dinner set' });
+    // Migrate Menu
+    for (const m of menu) {
+      await this.addMenuItem(m).catch(err => console.error('Error migrating menu item', m.name, err));
     }
+
+    // Migrate Extras
+    for (const e of extras) {
+      await this.addDailyExtra(e).catch(err => console.error('Error migrating extra', e, err));
+    }
+
+    console.log('Migration complete!');
+    return true;
   }
 };
 

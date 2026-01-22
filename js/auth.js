@@ -8,15 +8,12 @@ const Auth = {
   KEYS: {
     ADMIN: 'bc_admin_credentials',
     SESSION: 'bc_admin_session',
-    LOGIN_ATTEMPTS: 'bc_login_attempts',
     CREDENTIAL_LOG: 'bc_credential_log'
   },
 
   // Configuration
   CONFIG: {
     SESSION_TIMEOUT: 15 * 60 * 1000, // 15 minutes in ms
-    MAX_LOGIN_ATTEMPTS: 5,
-    LOCKOUT_DURATION: 15 * 60 * 1000, // 15 minutes lockout
     SALT_ROUNDS: 10
   },
 
@@ -32,9 +29,10 @@ const Auth = {
    */
   async init() {
     // Create default admin if first time
-    if (!this.getAdminCredentials()) {
-      await this.createDefaultAdmin();
-    }
+    // Default admin creation handled by database now
+    // if (!this.getAdminCredentials()) {
+    //   await this.createDefaultAdmin();
+    // }
 
     // Start activity tracking if logged in
     if (this.isLoggedIn()) {
@@ -114,53 +112,35 @@ const Auth = {
    * @returns {Object} { success: boolean, message: string }
    */
   async login(email, password) {
-    // Check lockout
-    const lockoutStatus = this.checkLockout();
-    if (lockoutStatus.locked) {
-      return {
-        success: false,
-        message: `Too many failed attempts. Try again in ${lockoutStatus.remainingMinutes} minutes.`
-      };
-    }
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-    // Get admin credentials
-    const admin = this.getAdminCredentials();
-    if (!admin) {
-      return { success: false, message: 'System error. Please contact support.' };
-    }
+      const data = await response.json();
 
-    // Verify email
-    if (email.toLowerCase() !== admin.email.toLowerCase()) {
-      this.recordFailedAttempt();
-      return { success: false, message: 'Invalid email or password.' };
-    }
-
-    // Verify password
-    const passwordValid = await this.verifyPassword(password, admin.password);
-    if (!passwordValid) {
-      this.recordFailedAttempt();
-      const attempts = this.getLoginAttempts();
-      const remaining = this.CONFIG.MAX_LOGIN_ATTEMPTS - attempts.count;
-      
-      if (remaining > 0) {
-        return { 
-          success: false, 
-          message: `Invalid email or password. ${remaining} attempts remaining.` 
-        };
-      } else {
-        return { 
-          success: false, 
-          message: 'Too many failed attempts. Please try again in 15 minutes.' 
-        };
+      if (!response.ok) {
+        return { success: false, message: data.message || 'Login failed' };
       }
-    }
 
-    // Success - create session
-    this.clearLoginAttempts();
-    this.createSession(email);
-    this.startActivityTimer();
-    
-    return { success: true, message: 'Welcome back!' };
+      // Success - create session
+      this.createSession(email);
+      this.startActivityTimer();
+      
+      // Store basic admin info for display
+      if (data.admin) {
+        localStorage.setItem(this.KEYS.ADMIN, JSON.stringify(data.admin));
+      }
+      
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, message: 'Connection error. Is the server running?' };
+    }
   },
 
   /**
@@ -290,62 +270,7 @@ const Auth = {
     }
   },
 
-  // =====================================================
-  // Login Attempts Tracking
-  // =====================================================
 
-  /**
-   * Get login attempts data
-   */
-  getLoginAttempts() {
-    try {
-      const data = localStorage.getItem(this.KEYS.LOGIN_ATTEMPTS);
-      return data ? JSON.parse(data) : { count: 0, lastAttempt: 0, lockedUntil: 0 };
-    } catch {
-      return { count: 0, lastAttempt: 0, lockedUntil: 0 };
-    }
-  },
-
-  /**
-   * Record failed login attempt
-   */
-  recordFailedAttempt() {
-    const attempts = this.getLoginAttempts();
-    attempts.count++;
-    attempts.lastAttempt = Date.now();
-
-    if (attempts.count >= this.CONFIG.MAX_LOGIN_ATTEMPTS) {
-      attempts.lockedUntil = Date.now() + this.CONFIG.LOCKOUT_DURATION;
-    }
-
-    localStorage.setItem(this.KEYS.LOGIN_ATTEMPTS, JSON.stringify(attempts));
-  },
-
-  /**
-   * Clear login attempts
-   */
-  clearLoginAttempts() {
-    localStorage.removeItem(this.KEYS.LOGIN_ATTEMPTS);
-  },
-
-  /**
-   * Check if account is locked out
-   */
-  checkLockout() {
-    const attempts = this.getLoginAttempts();
-    
-    if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
-      const remaining = Math.ceil((attempts.lockedUntil - Date.now()) / 60000);
-      return { locked: true, remainingMinutes: remaining };
-    }
-
-    // Reset if lockout expired
-    if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
-      this.clearLoginAttempts();
-    }
-
-    return { locked: false };
-  },
 
   // =====================================================
   // Credential Management
@@ -394,30 +319,29 @@ const Auth = {
       return { success: false, message: 'System error. Please try again.' };
     }
 
-    // Verify current password
-    const passwordValid = await this.verifyPassword(currentPassword, admin.password);
-    if (!passwordValid) {
-      return { success: false, message: 'Current password is incorrect.' };
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: admin.id,
+          currentPassword,
+          newEmail
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        this.logCredentialChange('email');
+        return { success: true, message: data.message };
+      } else {
+        return { success: false, message: data.message || 'Update failed' };
+      }
+    } catch (error) {
+      console.error('Update email error:', error);
+      return { success: false, message: 'Connection error. Is the server running?' };
     }
-
-    // Validate new email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
-      return { success: false, message: 'Please enter a valid email address.' };
-    }
-
-    // Update email
-    admin.email = newEmail.toLowerCase();
-    admin.lastUpdated = new Date().toISOString();
-    localStorage.setItem(this.KEYS.ADMIN, JSON.stringify(admin));
-
-    // Log the change
-    this.logCredentialChange('email');
-
-    return { 
-      success: true, 
-      message: 'Email updated successfully! Please login with your new email.' 
-    };
   },
 
   /**
@@ -431,31 +355,29 @@ const Auth = {
       return { success: false, message: 'System error. Please try again.' };
     }
 
-    // Verify current password
-    const passwordValid = await this.verifyPassword(currentPassword, admin.password);
-    if (!passwordValid) {
-      return { success: false, message: 'Current password is incorrect.' };
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: admin.id,
+          currentPassword,
+          newPassword
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        this.logCredentialChange('password');
+        return { success: true, message: data.message };
+      } else {
+        return { success: false, message: data.message || 'Update failed' };
+      }
+    } catch (error) {
+      console.error('Update password error:', error);
+      return { success: false, message: 'Connection error. Is the server running?' };
     }
-
-    // Validate new password strength
-    const validation = this.validatePasswordStrength(newPassword);
-    if (!validation.valid) {
-      return { success: false, message: validation.message };
-    }
-
-    // Hash and update password
-    const hashedPassword = await this.hashPassword(newPassword);
-    admin.password = hashedPassword;
-    admin.lastUpdated = new Date().toISOString();
-    localStorage.setItem(this.KEYS.ADMIN, JSON.stringify(admin));
-
-    // Log the change
-    this.logCredentialChange('password');
-
-    return { 
-      success: true, 
-      message: 'Password changed successfully! Please login with your new password.' 
-    };
   },
 
   /**

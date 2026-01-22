@@ -11,9 +11,9 @@ const Customers = {
   // Render
   // =====================================================
 
-  render() {
+  async render() {
     const pageContent = document.getElementById('pageContent');
-    const customers = DB.getCustomers();
+    const customers = await DB.getCustomers();
     
     pageContent.innerHTML = `
       <div class="card-header" style="background: none; padding: 0; border: none; margin-bottom: var(--space-6);">
@@ -39,8 +39,20 @@ const Customers = {
             <form id="customerForm" onsubmit="Customers.save(event)">
               <div class="form-group">
                 <label class="form-label required">Customer Name</label>
-                <input type="text" class="form-control" id="custName" 
-                       placeholder="Enter full name" required>
+                <div style="position: relative; display: flex; align-items: center;">
+                  <input type="text" class="form-control" id="custName" 
+                         placeholder="Enter full name" required style="padding-right: 40px;">
+                  <button type="button" id="custNameVoiceBtn" onclick="Customers.startNameVoice()" 
+                          style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--primary); transition: all 0.2s;"
+                          title="Voice Input">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                      <line x1="12" y1="19" x2="12" y2="23"/>
+                      <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
               
               <div class="form-group">
@@ -99,7 +111,7 @@ const Customers = {
                 
                 <div class="form-group">
                   <label class="form-label">Referral (Optional)</label>
-                  ${CustomerSearch.create('custReferralSearch', null, 'Search existing or type name...', false)}
+                  ${CustomerSearch.create('custReferralSearch', null, 'Search existing or type name...', false, false)}
                 </div>
               </div>
               
@@ -196,7 +208,7 @@ const Customers = {
   // Form Operations
   // =====================================================
 
-  openForm(customerId = null) {
+  async openForm(customerId = null) {
     this.editId = customerId;
     const modal = document.getElementById('customerModal');
     const title = document.getElementById('customerModalTitle');
@@ -206,7 +218,7 @@ const Customers = {
     
     if (customerId) {
       // Edit mode
-      const customer = DB.getCustomer(customerId);
+      const customer = await DB.getCustomer(customerId);
       if (!customer) {
         App.showToast('Customer not found', 'error');
         return;
@@ -269,7 +281,7 @@ const Customers = {
     App.closeModal('customerModal');
   },
 
-  save(event) {
+  async save(event) {
     event.preventDefault();
     
     const data = {
@@ -288,7 +300,7 @@ const Customers = {
     // Get referral - from search selection or manual text
     const referralId = CustomerSearch.getValue('custReferralSearch');
     if (referralId) {
-      const refCustomer = DB.getCustomer(referralId);
+      const refCustomer = await DB.getCustomer(referralId);
       data.referral = refCustomer ? `${refCustomer.name} (${refCustomer.mobile})` : '';
     } else {
       data.referral = document.getElementById('custReferralSearchInput')?.value.trim() || '';
@@ -308,16 +320,16 @@ const Customers = {
     try {
       if (this.editId) {
         // Update existing
-        DB.updateCustomer(this.editId, data);
+        await DB.updateCustomer(this.editId, data);
         App.showToast('Customer updated successfully!', 'success');
       } else {
         // Add new
-        DB.addCustomer(data);
+        await DB.addCustomer(data);
         App.showToast('Customer added successfully!', 'success');
       }
       
       this.closeForm();
-      this.render();
+      await this.render();
     } catch (error) {
       console.error('Save error:', error);
       App.showToast('Error saving customer', 'error');
@@ -332,28 +344,122 @@ const Customers = {
     this.openForm(id);
   },
 
-  delete(id) {
-    const customer = DB.getCustomer(id);
+  async delete(id) {
+    const customer = await DB.getCustomer(id);
     if (!customer) return;
     
     App.confirm(
       `Are you sure you want to delete "${customer.name}"? This cannot be undone.`,
-      () => {
-        DB.deleteCustomer(id);
+      async () => {
+        await DB.deleteCustomer(id);
         App.showToast('Customer deleted', 'success');
-        this.render();
+        await this.render();
       }
     );
   },
 
-  toggleStatus(id) {
-    const customer = DB.getCustomer(id);
+  async toggleStatus(id) {
+    const customer = await DB.getCustomer(id);
     if (!customer) return;
     
     const newStatus = customer.status === 'active' ? 'paused' : 'active';
-    DB.updateCustomer(id, { status: newStatus });
+    await DB.updateCustomer(id, { status: newStatus });
     App.showToast(`Customer ${newStatus === 'active' ? 'activated' : 'paused'}`, 'success');
-    this.render();
+    await this.render();
+  },
+
+  startNameVoice() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      App.showToast('Voice input not supported', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('custNameVoiceBtn');
+    const originalIcon = btn.innerHTML;
+    
+    // Visual feedback: show red recording icon
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#ef4444"><circle cx="12" cy="12" r="10"/></svg>';
+    btn.classList.add('listening');
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = true; // Enable real-time typing
+    recognition.maxAlternatives = 1;
+
+    try {
+      recognition.start();
+      App.showToast('Listening... Say name', 'info', 2000);
+    } catch (e) {
+      console.error(e);
+      // Reset on error start
+      btn.innerHTML = originalIcon;
+      btn.classList.remove('listening');
+    }
+
+    recognition.onresult = (event) => {
+      // Get the latest transcript segment
+      const transcript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('');
+
+      const input = document.getElementById('custName');
+      if (input) {
+        // Capitalize first letters of every word
+        const formatted = transcript.toLowerCase().replace(/(^|\s)\S/g, l => l.toUpperCase());
+        input.value = formatted;
+        
+        // Visual feedback for success
+        input.style.borderColor = 'var(--primary)';
+      }
+    };
+    
+    recognition.onend = () => {
+      // Reset button
+      const btn = document.getElementById('custNameVoiceBtn');
+      const input = document.getElementById('custName');
+      
+      if (input) {
+         input.style.borderColor = 'var(--success)';
+         setTimeout(() => input.style.borderColor = '', 1000);
+      }
+
+      if (btn) {
+         btn.innerHTML = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        `;
+        btn.classList.remove('listening');
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Voice error:', event.error);
+      if (event.error === 'not-allowed') {
+        App.showToast('Microphone access denied', 'error');
+      } else if (event.error === 'no-speech') {
+        App.showToast('No speech detected. Try again.', 'warning');
+      }
+      
+      // Reset button
+      const btn = document.getElementById('custNameVoiceBtn');
+      if (btn) {
+         btn.innerHTML = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        `;
+        btn.classList.remove('listening');
+      }
+    };
   }
 };
 

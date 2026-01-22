@@ -114,18 +114,7 @@
       font-size: var(--font-size-sm);
     }
     
-    .lockout-timer {
-      background: var(--warning-light);
-      color: #92400e;
-      padding: var(--space-4);
-      border-radius: var(--radius-lg);
-      margin-bottom: var(--space-5);
-      font-size: var(--font-size-sm);
-    }
-    
-    .lockout-timer strong {
-      font-size: var(--font-size-lg);
-    }
+
     
     /* Loading state */
     .btn-loading {
@@ -158,9 +147,7 @@
         <!-- Messages -->
         <div class="login-success" id="loginSuccess"></div>
         <div class="login-error" id="loginError"></div>
-        <div class="lockout-timer" id="lockoutTimer" style="display: none;">
-          ⏳ Account locked. Try again in <strong id="lockoutMinutes">15</strong> minutes.
-        </div>
+
         
         <!-- Login Form -->
         <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
@@ -221,15 +208,13 @@
       // Redirect if already logged in
       Auth.redirectIfLoggedIn();
       
+      
       // Show logout message if exists
       const logoutMessage = sessionStorage.getItem('bc_logout_message');
       if (logoutMessage) {
         showSuccess(logoutMessage);
         sessionStorage.removeItem('bc_logout_message');
       }
-      
-      // Check lockout status
-      updateLockoutDisplay();
     });
     
     // Toggle password visibility
@@ -274,7 +259,6 @@
           }, 500);
         } else {
           showError(result.message);
-          updateLockoutDisplay();
         }
       } catch (error) {
         showError('An error occurred. Please try again.');
@@ -306,24 +290,7 @@
       document.getElementById('loginSuccess').classList.remove('show');
     }
     
-    // Update lockout display
-    function updateLockoutDisplay() {
-      const lockoutStatus = Auth.checkLockout();
-      const lockoutEl = document.getElementById('lockoutTimer');
-      const loginForm = document.getElementById('loginForm');
-      
-      if (lockoutStatus.locked) {
-        lockoutEl.style.display = 'block';
-        document.getElementById('lockoutMinutes').textContent = lockoutStatus.remainingMinutes;
-        loginForm.querySelector('button[type="submit"]').disabled = true;
-        
-        // Update every minute
-        setTimeout(updateLockoutDisplay, 60000);
-      } else {
-        lockoutEl.style.display = 'none';
-        loginForm.querySelector('button[type="submit"]').disabled = false;
-      }
-    }
+
   </script>
 </body>
 </html>
