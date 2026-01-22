@@ -26,10 +26,27 @@ app.get('/api/health', async (req, res) => {
     console.log('DB Config loaded, querying...');
     await db.query('SELECT 1');
     console.log('DB Query successful');
-    res.json({ status: 'OK', database: 'Connected' });
+    res.json({ 
+      status: 'OK', 
+      database: 'Connected',
+      env_check: {
+        host: !!process.env.DB_HOST,
+        user: !!process.env.DB_USER,
+        pass: !!process.env.DB_PASS
+      }
+    });
   } catch (error) {
     console.error('Health Check Failure:', error);
-    res.status(500).json({ status: 'Error', database: 'Disconnected', error: error.message });
+    res.status(500).json({ 
+      status: 'Error', 
+      database: 'Disconnected', 
+      error: error.message,
+      env_check: {
+        host: !!process.env.DB_HOST,
+        user: !!process.env.DB_USER,
+        pass: !!process.env.DB_PASS
+      }
+    });
   }
 });
 
