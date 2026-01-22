@@ -113,7 +113,11 @@ const Auth = {
    */
   async login(email, password) {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:5000'
+        : ''; // Use relative path for production
+
+      const response = await fetch(`${baseUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -320,7 +324,11 @@ const Auth = {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/profile', {
+      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:5000'
+        : ''; // Use relative path for production
+
+      const response = await fetch(`${baseUrl}/api/auth/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -356,7 +364,11 @@ const Auth = {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/profile', {
+      const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:5000'
+        : ''; // Use relative path for production
+
+      const response = await fetch(`${baseUrl}/api/auth/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
