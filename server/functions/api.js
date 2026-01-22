@@ -32,7 +32,8 @@ app.get('/api/health', async (req, res) => {
       env_check: {
         host: !!process.env.DB_HOST,
         user: !!process.env.DB_USER,
-        pass: !!process.env.DB_PASS
+        pass_new: !!process.env.BC_DB_PASSWORD,
+        pass_legacy: !!process.env.DB_PASS
       }
     });
   } catch (error) {
@@ -44,7 +45,8 @@ app.get('/api/health', async (req, res) => {
       env_check: {
         host: !!process.env.DB_HOST,
         user: !!process.env.DB_USER,
-        pass: !!process.env.DB_PASS
+        pass_new: !!process.env.BC_DB_PASSWORD,
+        pass_legacy: !!process.env.DB_PASS
       }
     });
   }

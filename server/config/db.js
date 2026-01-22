@@ -11,14 +11,14 @@ if (!process.env.NETLIFY) {
 console.log('DB Connection Config:');
 console.log('- Host:', process.env.DB_HOST);
 console.log('- User:', process.env.DB_USER);
-console.log('- Password Present:', !!process.env.DB_PASS);
-console.log('- Password Length:', process.env.DB_PASS ? process.env.DB_PASS.length : 0);
+console.log('- Password Present:', !!(process.env.DB_PASS || process.env.BC_DB_PASSWORD));
+console.log('- Password Length:', (process.env.DB_PASS || process.env.BC_DB_PASSWORD) ? (process.env.DB_PASS || process.env.BC_DB_PASSWORD).length : 0);
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER,
-  password: process.env.DB_PASS,
+  password: process.env.BC_DB_PASSWORD || process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
