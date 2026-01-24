@@ -6,7 +6,7 @@
 # Redirect for the Express API
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/api/:splat"
+  to = "/.netlify/functions/api"
   status = 200
 
 # Redirect for SPA routing (Frontend)
