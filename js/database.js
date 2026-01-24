@@ -15,47 +15,32 @@ const DB = {
 
   async fetchAPI(endpoint, options = {}) {
     try {
-      // Netlify Fallback: If no backend, return empty/mocks to prevent crash
-      // or try LocalStorage if mapped.
-      
       const response = await fetch(`${this.API_URL}${endpoint}`, {
-        headers: { 'Content-Type': 'application/json', ...options.headers },
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
         ...options
-      }).catch(err => {
-         console.warn('Network error (Backend missing?), falling back to local.');
-         return null;
       });
-      
-      if (!response) return this.getLocalFallback(endpoint);
       
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.indexOf('application/json') === -1) {
-         console.warn('API returned non-JSON (likely 404 HTML). Falling back to local/mock.');
-         return this.getLocalFallback(endpoint);
+         // Received HTML or text (likely 404 from Netlify or Proxy error)
+         console.error('API Error: Received non-JSON response from', endpoint);
+         throw new Error('Server connection failed. API not reachable.');
       }
 
       if (!response.ok) {
-        // Only throw if meaningful API error, otherwise fallback
-        console.warn('API Error response, trying fallback.');
-        return this.getLocalFallback(endpoint);
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'API request failed');
       }
       
       return await response.json();
     } catch (error) {
       console.error(`API Error (${endpoint}):`, error);
-      return this.getLocalFallback(endpoint);
+      // Re-throw to let caller handle, but maybe ensure it's an Error object
+      throw error;
     }
-  },
-
-  getLocalFallback(endpoint) {
-    console.log('Serving local fallback for:', endpoint);
-    // Simple mapping for demonstration/offline mode
-    if (endpoint.includes('/customers')) return JSON.parse(localStorage.getItem('bc_customers')) || [];
-    if (endpoint.includes('/menu')) return JSON.parse(localStorage.getItem('bc_menu_items')) || [];
-    if (endpoint.includes('/extras')) return JSON.parse(localStorage.getItem('bc_daily_extras')) || [];
-    if (endpoint.includes('/invoices')) return []; // No local persistence for new invoices yet
-    if (endpoint.includes('/advance')) return [];
-    return [];
   },
 
   // =====================================================
