@@ -12,9 +12,29 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Basic Route
-app.get('/', (req, res) => {
-  res.send('Inas Cafe API is running...');
+const path = require('path');
+
+// ...
+
+// Serve Static Files (Frontend)
+app.use(express.static(path.join(__dirname, '../')));
+
+// Basic Route (optional, but static handles index.html)
+// app.get('/', ...); 
+
+// Routes
+app.use('/api/customers', require('./routes/customers'));
+// ... (rest of API routes)
+
+app.use('/api/health', ...);
+
+// Catch-all handler for SPA (Must be last)
+app.get('*', (req, res) => {
+  // If API request 404s, don't serve HTML, send 404 JSON
+  if (req.path.startsWith('/api/')) {
+     return res.status(404).json({ message: 'API Route not found' });
+  }
+  res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 // Routes
