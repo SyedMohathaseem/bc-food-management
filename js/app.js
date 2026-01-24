@@ -109,36 +109,50 @@ const App = {
     }, 100);
   },
 
-  renderPage(page) {
+  async renderPage(page) {
     const pageContent = document.getElementById('pageContent');
     
-    switch (page) {
-      case 'dashboard':
-        this.renderDashboard();
-        break;
-      case 'customers':
-        if (typeof Customers !== 'undefined') Customers.render();
-        break;
-      case 'menu':
-        if (typeof Menu !== 'undefined') Menu.render();
-        break;
-      case 'extras':
-        if (typeof Extras !== 'undefined') Extras.render();
-        break;
-      case 'advance':
-        if (typeof Advance !== 'undefined') Advance.render();
-        break;
-      case 'pending':
-        if (typeof Pending !== 'undefined') Pending.render();
-        break;
-      case 'invoice':
-        if (typeof Invoice !== 'undefined') Invoice.render();
-        break;
-      case 'security':
-        if (typeof Security !== 'undefined') Security.render();
-        break;
-      default:
-        pageContent.innerHTML = '<div class="card"><p>Page not found</p></div>';
+    try {
+      switch (page) {
+        case 'dashboard':
+          await this.renderDashboard();
+          break;
+        case 'customers':
+          if (typeof Customers !== 'undefined') await Customers.render();
+          break;
+        case 'menu':
+          if (typeof Menu !== 'undefined') await Menu.render();
+          break;
+        case 'extras':
+          if (typeof Extras !== 'undefined') await Extras.render();
+          break;
+        case 'advance':
+          if (typeof Advance !== 'undefined') await Advance.render();
+          break;
+        case 'pending':
+          if (typeof Pending !== 'undefined') await Pending.render();
+          break;
+        case 'invoice':
+          if (typeof Invoice !== 'undefined') await Invoice.render();
+          break;
+        case 'security':
+          if (typeof Security !== 'undefined') await Security.render();
+          break;
+        default:
+          pageContent.innerHTML = '<div class="card"><p>Page not found</p></div>';
+      }
+    } catch (error) {
+      console.error(`Error rendering page ${page}:`, error);
+      pageContent.innerHTML = `
+        <div class="empty-state" style="padding: 40px; text-align: center;">
+           <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+           <h3>Something went wrong</h3>
+           <p class="text-danger">${error.message}</p>
+           <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">
+             🔄 Reload Page
+           </button>
+        </div>
+      `;
     }
   },
 
