@@ -1,0 +1,9 @@
+{
+    "name": "bc-maintenance-root",
+    "version": "1.0.0",
+    "description": "Root package to handle server dependency installation for Netlify Functions",
+    "scripts": {
+        "build": "cd server && npm install"
+    },
+    "dependencies": {}
+}

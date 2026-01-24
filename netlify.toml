@@ -1,7 +1,8 @@
 [build]
   base = "server"
   publish = "../"
-  functions = "functions"
+  command = "npm run build"
+  functions = "server/functions"
 
 # Redirect for the Express API
 [[redirects]]
