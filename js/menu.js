@@ -13,6 +13,9 @@ const Menu = {
     lunch: '☀️ Lunch',
     dinner: '🌙 Dinner'
   },
+  
+  // Cached items
+  data: [],
 
   // =====================================================
   // Render
@@ -20,7 +23,7 @@ const Menu = {
 
   async render() {
     const pageContent = document.getElementById('pageContent');
-    const menuItems = await DB.getMenuItems();
+    this.data = await DB.getMenuItems();
     
     pageContent.innerHTML = `
       <div class="card-header" style="background: none; padding: 0; border: none; margin-bottom: var(--space-6);">
@@ -29,10 +32,20 @@ const Menu = {
           ➕ Add Item
         </button>
       </div>
+
+      <!-- Search Bar -->
+      <div class="card mb-4" style="margin-bottom: var(--space-4);">
+        <div class="search-bar" style="max-width: 100%; border: 1px solid var(--neutral-300);">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="menuSearch" class="search-input" 
+                 placeholder="Search menu items..." 
+                 oninput="Menu.filter()" autocomplete="off">
+        </div>
+      </div>
       
       <!-- Menu Items by Category -->
       <div id="categoryContainer">
-        ${await this.renderByCategory(menuItems)}
+        ${await this.renderByCategory(this.data)}
       </div>
       
       <!-- Add/Edit Modal -->
@@ -159,7 +172,35 @@ const Menu = {
       html += '</ul></div>';
     }
 
+
+
     return html;
+  },
+
+  filter() {
+    const query = document.getElementById('menuSearch').value.toLowerCase().trim();
+    const container = document.getElementById('categoryContainer');
+    
+    if (!query) {
+      this.renderByCategory(this.data).then(html => container.innerHTML = html);
+      return;
+    }
+
+    const filtered = this.data.filter(item => 
+      item.name.toLowerCase().includes(query) || 
+      item.price.toString().includes(query)
+    );
+    
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding: var(--space-8) 0;">
+          <div class="empty-state-icon" style="font-size: 32px;">🔍</div>
+          <p class="empty-state-text">No items matching "${query}"</p>
+        </div>
+      `;
+    } else {
+      this.renderByCategory(filtered).then(html => container.innerHTML = html);
+    }
   },
 
   // =====================================================
@@ -236,7 +277,12 @@ const Menu = {
       }
       
       this.closeForm();
-      await this.render();
+      const updatedItems = await DB.getMenuItems();
+      this.data = updatedItems;
+      document.getElementById('categoryContainer').innerHTML = await this.renderByCategory(this.data);
+      // Re-apply filter if exists
+      const query = document.getElementById('menuSearch')?.value;
+      if (query) this.filter();
     } catch (error) {
       console.error('Save error:', error);
       App.showToast('Error saving item', 'error');

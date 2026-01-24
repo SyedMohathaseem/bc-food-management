@@ -90,10 +90,10 @@ const App = {
       link.classList.toggle('active', link.dataset.page === page);
     });
 
-    // Hide search bar on extras page
+    // Show search bar ONLY on dashboard
     const searchContainer = document.getElementById('searchContainer');
     if (searchContainer) {
-      searchContainer.style.display = page === 'extras' ? 'none' : 'block';
+      searchContainer.style.display = page === 'dashboard' ? 'block' : 'none';
     }
 
     // Load page content (use pageContent to preserve search bar)
@@ -125,6 +125,12 @@ const App = {
       case 'extras':
         if (typeof Extras !== 'undefined') Extras.render();
         break;
+      case 'advance':
+        if (typeof Advance !== 'undefined') Advance.render();
+        break;
+      case 'pending':
+        if (typeof Pending !== 'undefined') Pending.render();
+        break;
       case 'invoice':
         if (typeof Invoice !== 'undefined') Invoice.render();
         break;
@@ -149,6 +155,11 @@ const App = {
       
       <!-- Stats Cards -->
       <div class="stats-grid">
+        <div class="stat-card" onclick="App.loadPage('pending')" style="cursor: pointer; border-left: 4px solid #b45309;">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-value">${stats.pendingCount}</div>
+          <div class="stat-label">Pending: ₹${stats.pendingAmount.toLocaleString('en-IN')}</div>
+        </div>
         <div class="stat-card" onclick="App.loadPage('customers')" style="cursor: pointer;">
           <div class="stat-icon">👥</div>
           <div class="stat-value">${stats.activeCustomers}</div>
@@ -400,7 +411,10 @@ const App = {
   // =====================================================
 
   formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'N/A';
+    
     return date.toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',

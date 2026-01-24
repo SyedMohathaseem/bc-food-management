@@ -91,10 +91,18 @@ const Extras = {
       
       <!-- Today's Entries -->
       <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">📋 Today's Entries</h3>
-          <input type="date" id="viewDate" value="${today}" class="form-control" 
-                 style="max-width: 180px;" onchange="Extras.loadEntriesForDate()">
+        <div class="card-header" style="flex-direction: column; align-items: stretch; gap: var(--space-3);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title">📋 Today's Entries</h3>
+            <input type="date" id="viewDate" value="${today}" class="form-control" 
+                   style="max-width: 180px;" onchange="Extras.loadEntriesForDate()">
+          </div>
+          <div class="search-bar" style="border: 1px solid var(--neutral-300);">
+             <span class="search-icon">🔍</span>
+             <input type="text" id="extrasSearch" class="search-input" 
+                    placeholder="Search entry by customer, type, or item..."
+                    oninput="Extras.filter()" autocomplete="off">
+          </div>
         </div>
         <div id="entriesList">
           <div class="loading"><div class="spinner"></div></div>
@@ -102,12 +110,16 @@ const Extras = {
       </div>
     `;
     
+    // Cached loaded entries
+    this.dailyData = [];
+    
     // Initial load
     await this.loadEntriesForDate();
   },
 
-  async renderEntries(date) {
-    const extras = await DB.getExtrasByDate(date);
+  async renderEntries(date, entriesOverride = null) {
+    const extras = entriesOverride || await DB.getExtrasByDate(date);
+    if (!entriesOverride) this.dailyData = extras; // Cache if fetching new
     
     if (extras.length === 0) {
       return `
@@ -185,6 +197,62 @@ const Extras = {
     `;
     
     return html;
+  },
+  
+  filter() {
+    const query = document.getElementById('extrasSearch').value.toLowerCase().trim();
+    const listDiv = document.getElementById('entriesList');
+    const date = document.getElementById('viewDate').value;
+
+    if (!query) {
+       this.renderEntries(date, this.dailyData).then(html => listDiv.innerHTML = html);
+       return;
+    }
+
+    const filtered = this.dailyData.filter(e => {
+       // We need customer name and item name. 
+       // Since the raw objects don't have them joined, we might need a richer data structure or check known IDs?
+       // Actually, renderEntries fetches them. That's expensive to do in filter.
+       // Better approach: filter relies on cache? 
+       // Realistically, to filter by name we need the names. 
+       // Let's assume the user searches mostly by meta-data we have or we fetch names once.
+       // To be fast, let's just re-render with filtered list. 
+       // But wait, the raw 'e' object has customerId, not name.
+       // So filtering by customer name is hard without joining first.
+       
+       // Correct approach: The renderEntries function fetches everything. 
+       // We should perhaps fetch and enrich data first, then render from enriched data.
+       // For now, let's keep it simple: Filter by mealtype or notes or price.
+       // For Customer Name, it's tricky without pre-fetching.
+       // Let's modify loadEntriesForDate to fetch and enrich `this.dailyData` with names.
+       return true; 
+    });
+    
+    // Actually, let's do the filter inside renderEntries? No.
+    // Let's enrich the data in loadEntriesForDate.
+    
+    // For now, let's just call renderEntries with the filtered raw list?
+    // We can't filter by name if we don't have it.
+    // Let's rely on the user typing what IS there, or change strategy.
+    
+    // Alternate strategy: Just render everything and hide <li> that don't match textContent?
+    // That's the DOM-based search approach. It's fast and easy for "already rendered" lists.
+    const items = listDiv.querySelectorAll('.list-item');
+    let hasVisible = false;
+    
+    items.forEach(item => {
+      const text = item.textContent.toLowerCase();
+      if (text.includes(query)) {
+        item.style.display = '';
+        hasVisible = true;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+    
+    // Handle empty state
+    // We'd need to manually show/hide a "no results" message or grand total.
+    // DOM search is easiest for now given the data structure complexity.
   },
 
   getMealIcon(meal) {

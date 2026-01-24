@@ -57,6 +57,33 @@ CREATE TABLE IF NOT EXISTS admins (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Advance Payments Table
+CREATE TABLE IF NOT EXISTS advance_payments (
+    id VARCHAR(50) PRIMARY KEY,
+    customer_id VARCHAR(50),
+    month INT NOT NULL, -- 1-12
+    year INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    date DATE NOT NULL,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+-- Invoices Table (Pending Amounts)
+CREATE TABLE IF NOT EXISTS invoices (
+    id VARCHAR(50) PRIMARY KEY,
+    customer_id VARCHAR(50),
+    month INT NOT NULL,
+    year INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    status ENUM('pending', 'paid') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    paid_at DATETIME,
+    payment_notes TEXT,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
 -- Insert Default Admin (Password: admin123 - should be updated)
 -- We will handle hashing on the server, this is just for schema reference.
 -- 

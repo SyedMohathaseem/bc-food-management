@@ -183,6 +183,65 @@ const DB = {
   },
 
   // =====================================================
+  // Advance Payment Operations
+  // =====================================================
+
+  async getAdvancePayments(customerId = null, year = null) {
+    let query = '';
+    const params = [];
+    if (customerId) params.push(`customerId=${customerId}`);
+    if (year) params.push(`year=${year}`);
+    
+    if (params.length > 0) query = '?' + params.join('&');
+    return this.fetchAPI(`/advance${query}`);
+  },
+
+  async addAdvancePayment(payment) {
+    return this.fetchAPI('/advance', {
+      method: 'POST',
+      body: JSON.stringify(payment)
+    });
+  },
+
+  async deleteAdvancePayment(id) {
+    return this.fetchAPI(`/advance/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // =====================================================
+  // Invoice / Pending Amount Operations
+  // =====================================================
+
+  async getPendingInvoices() {
+    return this.fetchAPI('/invoices?status=pending');
+  },
+
+  async getPaidInvoices() {
+    return this.fetchAPI('/invoices?status=paid');
+  },
+
+  async getAllInvoices() {
+    // Fetch all invoices (paid and pending) to check for existence
+    // Note: In a real app, we'd use a specific check-exists API, but getting all is fine for small scale
+    return this.fetchAPI('/invoices?status=all'); 
+  },
+
+  async saveInvoiceAsPending(invoice) {
+    return this.fetchAPI('/invoices', {
+      method: 'POST',
+      body: JSON.stringify(invoice)
+    });
+  },
+
+  async markInvoiceAsPaid(id, notes) {
+    return this.fetchAPI(`/invoices/${id}/pay`, {
+      method: 'PUT',
+      body: JSON.stringify({ notes })
+    });
+  },
+
+  // =====================================================
   // Invoice Generation Helpers
   // =====================================================
 
@@ -230,7 +289,17 @@ const DB = {
 
     let subscriptionTotal = customer.subscriptionType === 'monthly' ? parseFloat(customer.dailyAmount) : parseFloat(customer.dailyAmount) * daysInMonth;
     const extrasTotal = breakfastTotal + lunchTotal + dinnerTotal;
-    const grandTotal = subscriptionTotal + extrasTotal;
+    
+    // Fetch advance payments for this month/year
+    const advancePayments = await this.getAdvancePayments(customerId, year);
+    // Filter for specific month if needed, but the API might return all for year. 
+    // Let's filter in JS to be safe if API returns more.
+    const relevantAdvances = advancePayments.filter(p => p.month === month + 1); // API expects 1-12
+    
+    let totalAdvance = 0;
+    relevantAdvances.forEach(p => totalAdvance += parseFloat(p.amount));
+    
+    const grandTotal = subscriptionTotal + extrasTotal - totalAdvance;
 
     return {
       customer,
@@ -247,6 +316,7 @@ const DB = {
         lunchTotal,
         dinnerTotal,
         extrasTotal,
+        totalAdvance,
         grandTotal
       }
     };
@@ -321,6 +391,10 @@ const DB = {
     const extras = await this.getDailyExtras();
     const today = new Date().toISOString().split('T')[0];
     const todayExtras = await this.getExtrasByDate(today);
+    const pendingInvoices = await this.getPendingInvoices();
+    
+    let pendingAmount = 0;
+    pendingInvoices.forEach(inv => pendingAmount += parseFloat(inv.amount));
 
     return {
       totalCustomers: customers.length,
@@ -328,7 +402,9 @@ const DB = {
       totalMenuItems: menuItems.length,
       availableMenuItems: menuItems.filter(m => m.available).length,
       todayExtrasCount: todayExtras.length,
-      totalExtras: extras.length
+      totalExtras: extras.length,
+      pendingCount: pendingInvoices.length,
+      pendingAmount
     };
   },
 

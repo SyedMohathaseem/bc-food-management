@@ -21,6 +21,8 @@ app.get('/', (req, res) => {
 app.use('/api/customers', require('./routes/customers'));
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/extras', require('./routes/extras'));
+app.use('/api/advance', require('./routes/advance'));
+app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/auth', require('./routes/auth'));
 
 // Health Check

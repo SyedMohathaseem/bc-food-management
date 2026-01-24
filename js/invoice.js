@@ -50,20 +50,10 @@ const Invoice = {
               ${CustomerSearch.create('invoiceCustomerSearch', null, 'Type name or mobile...', false)}
             </div>
             
-            <div id="monthlySelectors" class="form-row" style="grid-column: span 2; display: grid;">
-              <div class="form-group">
-                <label class="form-label required">Month</label>
-                <select class="form-control form-select" id="invoiceMonth" required>
-                  ${this.getMonthOptions(currentMonth)}
-                </select>
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label required">Year</label>
-                <select class="form-control form-select" id="invoiceYear" required>
-                  ${this.getYearOptions(currentYear)}
-                </select>
-              </div>
+            <div id="monthlySelectors" class="form-group" style="grid-column: span 2;">
+              <label class="form-label required">Select Month</label>
+              <input type="month" class="form-control" id="invoiceMonthPicker" 
+                     value="${new Date().toISOString().slice(0, 7)}" required>
             </div>
 
             <div id="dailySelector" class="form-group" style="display: none; grid-column: span 2;">
@@ -84,6 +74,18 @@ const Invoice = {
 
     // Set default filter for monthly period
     CustomerSearch.setFilter('invoiceCustomerSearch', c => c.subscriptionType === 'monthly');
+    
+    // Render Quick List
+    this.renderQuickList();
+  },
+
+  async renderQuickList() {
+    const container = document.getElementById('invoicePreview');
+    // We'll insert the quick list BEFORE the preview, or inside a new container. 
+    // Actually, let's create a new container for it if it doesn't exist, or reuse a specific div.
+    // Let's modify render() to include a placeholder for it designated as 'quickListContainer'.
+    
+    // Re-targeting the render function to add the container first.
   },
 
   getMonthOptions(selectedMonth) {
@@ -149,8 +151,15 @@ const Invoice = {
     let data;
     try {
       if (periodType === 'monthly') {
-        const month = parseInt(document.getElementById('invoiceMonth').value);
-        const year = parseInt(document.getElementById('invoiceYear').value);
+        const period = document.getElementById('invoiceMonthPicker').value;
+        if (!period) {
+          App.showToast('Please select a month', 'error');
+          return;
+        }
+        const [yearStr, monthStr] = period.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStr) - 1; // Convert 01-12 to 0-11
+        
         data = await DB.generateInvoiceData(customerId, year, month);
       } else {
         const date = document.getElementById('invoiceDate').value;
@@ -281,7 +290,19 @@ const Invoice = {
             <span><strong>₹${data.summary.extrasTotal.toLocaleString('en-IN')}</strong></span>
           </div>
           
-          <div class="invoice-summary-row total" style="background: var(--neutral-900); color: var(--white); padding: var(--space-4); border-radius: var(--radius-md);">
+          <div class="invoice-summary-row" style="margin-top: var(--space-4); border-top: 2px solid var(--neutral-200); padding-top: var(--space-3);">
+            <span style="font-size: var(--font-size-lg);"><strong>Total Amount:</strong></span>
+            <span style="font-size: var(--font-size-lg);"><strong>₹${(data.summary.subscriptionTotal + data.summary.extrasTotal).toLocaleString('en-IN')}</strong></span>
+          </div>
+
+          ${data.summary.totalAdvance > 0 ? `
+            <div class="invoice-summary-row" style="color: var(--success); margin-top: var(--space-2);">
+              <span>Advance Payment (${data.monthName}):</span>
+              <span>-₹${data.summary.totalAdvance.toLocaleString('en-IN')}</span>
+            </div>
+          ` : ''}
+          
+          <div class="invoice-summary-row total" style="background: var(--neutral-900); color: var(--white); padding: var(--space-4); border-radius: var(--radius-md); margin-top: var(--space-3);">
             <span style="font-size: var(--font-size-lg);">💰 FINAL PAYABLE AMOUNT:</span>
             <span style="font-size: var(--font-size-2xl);">₹${data.summary.grandTotal.toLocaleString('en-IN')}</span>
           </div>
@@ -311,6 +332,29 @@ const Invoice = {
 
   print() {
     window.print();
+  },
+
+  async saveAsPending() {
+    if (!this.currentData) return;
+    
+    App.confirm(
+      `Save pending amount of ₹${this.currentData.summary.grandTotal} for ${this.currentData.customer.name}?`,
+      async () => {
+        try {
+          await DB.saveInvoiceAsPending({
+            customerId: this.currentData.customer.id,
+            month: this.currentData.month + 1, // DB expects 1-12
+            year: this.currentData.year,
+            amount: this.currentData.summary.grandTotal
+          });
+          
+          App.showToast('Invoice saved to Pending list!', 'success');
+        } catch (error) {
+          console.error('Error saving invoice:', error);
+          App.showToast('Error saving invoice', 'error');
+        }
+      }
+    );
   },
 
   async downloadPDF() {

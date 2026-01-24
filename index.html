@@ -54,6 +54,18 @@
             </a>
           </li>
           <li>
+            <a href="#advance" class="nav-link" data-page="advance">
+              <span class="nav-link-icon">💰</span>
+              <span class="nav-link-text">Advance Payment</span>
+            </a>
+          </li>
+          <li>
+            <a href="#pending" class="nav-link" data-page="pending">
+              <span class="nav-link-icon">⏳</span>
+              <span class="nav-link-text">Pending Amount</span>
+            </a>
+          </li>
+          <li>
             <a href="#invoice" class="nav-link" data-page="invoice">
               <span class="nav-link-icon">🧾</span>
               <span class="nav-link-text">Invoices</span>
@@ -88,7 +100,8 @@
           <button class="sidebar-toggle" id="sidebarToggle">☰</button>
 
           <!-- Global Search Bar (Persistent) -->
-          <div class="search-container" id="searchContainer">
+          <!-- Global Search Bar (Only visible on Dashboard) -->
+          <div class="search-container" id="searchContainer" style="display: none;">
             <div class="search-bar">
               <span class="search-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -130,6 +143,8 @@
   <script src="js/customers.js"></script>
   <script src="js/menu.js"></script>
   <script src="js/extras.js"></script>
+  <script src="js/advance.js"></script>
+  <script src="js/pending.js"></script>
   <script src="js/invoice.js"></script>
   <script src="js/security.js"></script>
   <script src="js/search.js"></script>

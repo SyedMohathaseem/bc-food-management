@@ -6,6 +6,9 @@
 const Customers = {
   // Current edit ID (null = add mode)
   editId: null,
+  
+  // Cached customers for filtering
+  data: [],
 
   // =====================================================
   // Render
@@ -13,7 +16,7 @@ const Customers = {
 
   async render() {
     const pageContent = document.getElementById('pageContent');
-    const customers = await DB.getCustomers();
+    this.data = await DB.getCustomers(); // Cache data
     
     pageContent.innerHTML = `
       <div class="card-header" style="background: none; padding: 0; border: none; margin-bottom: var(--space-6);">
@@ -22,10 +25,20 @@ const Customers = {
           ➕ Add Customer
         </button>
       </div>
+
+      <!-- Customer Search -->
+      <div class="card mb-4" style="margin-bottom: var(--space-4);">
+        <div class="search-bar" style="max-width: 100%; border: 1px solid var(--neutral-300);">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="customerListSearch" class="search-input" 
+                 placeholder="Search by name, mobile, or status..." 
+                 oninput="Customers.filterList()" autocomplete="off">
+        </div>
+      </div>
       
       <!-- Customer List -->
-      <div class="card">
-        ${customers.length === 0 ? this.renderEmpty() : this.renderList(customers)}
+      <div class="card" id="customerListContainer">
+        ${this.data.length === 0 ? this.renderEmpty() : this.renderList(this.data)}
       </div>
       
       <!-- Add/Edit Modal -->
@@ -103,13 +116,7 @@ const Customers = {
               </div>
 
               <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Advance Amount Received (₹)</label>
-                  <input type="number" class="form-control" id="custAdvance" 
-                         placeholder="0" min="0" step="10">
-                </div>
-                
-                <div class="form-group">
+                <div class="form-group" style="width: 100%;">
                   <label class="form-label">Referral (Optional)</label>
                   ${CustomerSearch.create('custReferralSearch', null, 'Search existing or type name...', false, false)}
                 </div>
@@ -165,28 +172,32 @@ const Customers = {
       const statusLabel = c.status === 'active' ? 'Active' : 'Paused';
       
       // Format meal times display
-      const mealMap = { breakfast: '🌅', lunch: '☀️', dinner: '🌙' };
+      const mealMap = { 
+        breakfast: '<span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-right: 4px; font-weight: 500;">Breakfast</span>', 
+        lunch: '<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-right: 4px; font-weight: 500;">Lunch</span>', 
+        dinner: '<span style="background: #e0f2fe; color: #075985; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-right: 4px; font-weight: 500;">Dinner</span>' 
+      };
+      
       const mealTimesHtml = (c.mealTimes || ['breakfast', 'lunch', 'dinner'])
         .map(m => mealMap[m] || '')
-        .join(' ');
+        .join('');
 
-      const advanceHtml = c.advanceAmount > 0 
-        ? `<span class="badge badge-success customer-advance-badge">Advance: ₹${c.advanceAmount}</span>`
-        : '';
-      
       html += `
         <li class="list-item customer-list-item">
           <div class="list-item-content">
             <div class="list-item-title">
               <span class="customer-name">${c.name}</span>
               <span class="customer-meal-icons">${mealTimesHtml}</span>
-              ${advanceHtml}
             </div>
             <div class="list-item-subtitle">
               <span class="customer-meta">📱 ${c.mobile}</span>
               <span class="customer-meta">💰 ₹${c.dailyAmount}/${c.subscriptionType === 'monthly' ? 'month' : 'day'}</span>
               <span class="customer-meta">📝 ${c.subscriptionType}</span>
               ${c.referral ? `<span class="customer-meta">👤 Ref: ${c.referral}</span>` : ''}
+            </div>
+            <div class="list-item-subtitle" style="margin-top: 4px;">
+              ${c.address ? `<span class="customer-meta" title="${c.address}">🏠 ${c.address}</span>` : ''}
+              <span class="customer-meta">📅 Start: ${App.formatDate(c.startDate)}</span>
             </div>
           </div>
           <div class="customer-status-actions">
@@ -201,7 +212,35 @@ const Customers = {
     });
     
     html += '</ul>';
+    html += '</ul>';
     return html;
+  },
+
+  filterList() {
+    const query = document.getElementById('customerListSearch').value.toLowerCase().trim();
+    const container = document.getElementById('customerListContainer');
+    
+    if (!query) {
+      container.innerHTML = this.renderList(this.data);
+      return;
+    }
+
+    const filtered = this.data.filter(c => 
+      c.name.toLowerCase().includes(query) ||
+      c.mobile.includes(query) ||
+      c.status.toLowerCase().includes(query)
+    );
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding: var(--space-8) 0;">
+          <div class="empty-state-icon" style="font-size: 32px;">🔍</div>
+          <p class="empty-state-text">No customers found matching "${query}"</p>
+        </div>
+      `;
+    } else {
+      container.innerHTML = this.renderList(filtered);
+    }
   },
 
   // =====================================================
@@ -238,7 +277,11 @@ const Customers = {
         cb.checked = mealTimes.includes(cb.value);
       });
       
-      document.getElementById('custAdvance').value = customer.advanceAmount || 0;
+      document.querySelectorAll('input[name="custMealType"]').forEach(cb => {
+        cb.checked = mealTimes.includes(cb.value);
+      });
+      
+      // Removed Advance Amount field population
       
       // Update referral search
       CustomerSearch.clear('custReferralSearch');
@@ -247,7 +290,15 @@ const Customers = {
         if (referralInput) referralInput.value = customer.referral;
       }
       
-      document.getElementById('custStartDate').value = customer.startDate;
+      if (customer.startDate) {
+        const d = new Date(customer.startDate);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        document.getElementById('custStartDate').value = `${yyyy}-${mm}-${dd}`;
+      } else {
+        document.getElementById('custStartDate').value = '';
+      }
       document.getElementById('custStatus').value = customer.status;
     } else {
       // Add mode
@@ -257,7 +308,7 @@ const Customers = {
       
       // Default all meal times checked
       document.querySelectorAll('input[name="custMealType"]').forEach(cb => cb.checked = true);
-      document.getElementById('custAdvance').value = 0;
+      // Removed Advance Amount default
       CustomerSearch.clear('custReferralSearch');
     }
     
@@ -289,9 +340,9 @@ const Customers = {
       mobile: document.getElementById('custMobile').value.trim(),
       address: document.getElementById('custAddress').value.trim(),
       subscriptionType: document.getElementById('custSubType').value,
-      dailyAmount: parseFloat(document.getElementById('custAmount').value),
+      dailyAmount: document.getElementById('custAmount').value,
       mealTimes: Array.from(document.querySelectorAll('input[name="custMealType"]:checked')).map(cb => cb.value),
-      advanceAmount: parseFloat(document.getElementById('custAdvance').value) || 0,
+      advanceAmount: 0, // Removed field, set to 0
       referral: '', // Placeholder, set below
       startDate: document.getElementById('custStartDate').value,
       status: document.getElementById('custStatus').value

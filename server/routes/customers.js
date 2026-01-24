@@ -13,7 +13,8 @@ router.get('/', async (req, res) => {
       mealTimes: typeof c.meal_times === 'string' ? JSON.parse(c.meal_times) : c.meal_times,
       subscriptionType: c.subscription_type,
       dailyAmount: parseFloat(c.daily_amount),
-      advanceAmount: parseFloat(c.advance_amount)
+      advanceAmount: parseFloat(c.advance_amount),
+      startDate: c.start_date
     }));
     res.json(customers);
   } catch (error) {
@@ -36,7 +37,8 @@ router.get('/:id', async (req, res) => {
       mealTimes: typeof c.meal_times === 'string' ? JSON.parse(c.meal_times) : c.meal_times,
       subscriptionType: c.subscription_type,
       dailyAmount: parseFloat(c.daily_amount),
-      advanceAmount: parseFloat(c.advance_amount)
+      advanceAmount: parseFloat(c.advance_amount),
+      startDate: c.start_date
     };
     
     res.json(customer);
@@ -54,8 +56,8 @@ router.post('/', async (req, res) => {
   try {
     const mealTimes = JSON.stringify(c.mealTimes || []);
     await db.query(
-      'INSERT INTO customers (id, name, mobile, address, subscription_type, daily_amount, meal_times, advance_amount, referral, start_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, c.name, c.mobile, c.address, c.subscriptionType, c.dailyAmount, mealTimes, c.advanceAmount, c.referral, c.startDate, c.status || 'active']
+      'INSERT INTO customers (id, name, mobile, address, subscription_type, daily_amount, meal_times, referral, start_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, c.name, c.mobile, c.address, c.subscriptionType, c.dailyAmount, mealTimes, c.referral, c.startDate, c.status || 'active']
     );
     res.status(201).json({ id, ...c });
   } catch (error) {
@@ -81,8 +83,9 @@ router.put('/:id', async (req, res) => {
     if (updates.subscriptionType) { fields.push('subscription_type = ?'); params.push(updates.subscriptionType); }
     if (updates.dailyAmount !== undefined) { fields.push('daily_amount = ?'); params.push(updates.dailyAmount); }
     if (updates.mealTimes) { fields.push('meal_times = ?'); params.push(JSON.stringify(updates.mealTimes)); }
-    if (updates.advanceAmount !== undefined) { fields.push('advance_amount = ?'); params.push(updates.advanceAmount); }
+    if (updates.mealTimes) { fields.push('meal_times = ?'); params.push(JSON.stringify(updates.mealTimes)); }
     if (updates.referral !== undefined) { fields.push('referral = ?'); params.push(updates.referral); }
+    if (updates.startDate) { fields.push('start_date = ?'); params.push(updates.startDate); }
     if (updates.status) { fields.push('status = ?'); params.push(updates.status); }
     
     if (fields.length === 0) return res.json({ message: 'No updates provided' });
