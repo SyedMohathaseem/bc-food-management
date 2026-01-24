@@ -1,8 +1,8 @@
 [build]
-  base = "server"
-  publish = "../"
-  command = "npm run build"
+  # Run from root, install server deps for functions
+  command = "cd server && npm install"
   functions = "server/functions"
+  publish = "."
 
 # Redirect for the Express API
 [[redirects]]
